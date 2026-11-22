@@ -1,17 +1,21 @@
 import { Eye, FileCheck2, GitBranch, ShieldAlert, Server } from "lucide-react";
 import { Card, Title, Badge } from "@/components/ui";
 import { CountUp } from "@/components/count-up";
-import { releases, sths } from "@/lib/mock";
+import { getLeaves, witnessesOnline } from "@/lib/api";
 
-const kpis = [
-  { label: "Releases logged", n: releases.length, Icon: FileCheck2 },
-  { label: "Tree size", n: sths.at(-1)!.treeSize, Icon: GitBranch },
-  { label: "Witnesses online", n: 3, Icon: Server },
-  { label: "Clients verified", n: 0, Icon: Eye },
-  { label: "Attacks blocked", n: 0, Icon: ShieldAlert },
-];
+export const dynamic = "force-dynamic";
 
-export default function Overview() {
+export default async function Overview() {
+  const [leaves, online] = await Promise.all([getLeaves(), witnessesOnline()]);
+  const n = leaves?.length ?? 0;
+  // ponytail: clients verified and attacks blocked stay 0 until fleet/attack runs are recorded server-side.
+  const kpis = [
+    { label: "Releases logged", n, Icon: FileCheck2 },
+    { label: "Tree size", n, Icon: GitBranch },
+    { label: "Witnesses online", n: online, Icon: Server },
+    { label: "Clients verified", n: 0, Icon: Eye },
+    { label: "Attacks blocked", n: 0, Icon: ShieldAlert },
+  ];
   return (
     <>
       <Title sub="An update installs only if everyone was offered the same file, and it sits in a public log cosigned by independent witnesses.">
@@ -27,12 +31,12 @@ export default function Overview() {
         ))}
       </div>
       <Card className="mt-6" delay={600}>
-        <div className="mb-4 flex items-center justify-between"><h2 className="text-2xl font-medium">Live event feed</h2><Badge tone="mute">mock data</Badge></div>
+        <div className="mb-4 flex items-center justify-between"><h2 className="text-2xl font-medium">Live event feed</h2>{!leaves && <Badge tone="bad">log-server unreachable</Badge>}</div>
         <ul className="divide-y divide-line">
-          {releases.slice(-5).reverse().map((r) => (
+          {(leaves ?? []).slice(-5).reverse().map((r) => (
             <li key={r.idx} className="flex flex-wrap items-center gap-x-6 gap-y-2 py-4 text-lg">
-              <Badge tone={r.approved ? "ok" : "bad"}>{r.approved ? "logged" : "unapproved"}</Badge>
-              <span className="font-mono">{r.app} {r.version}</span><span className="text-mute">{r.platform}</span>
+              <Badge tone="ok">logged</Badge>
+              <span className="font-mono">{r.entry.app} {r.entry.version}</span><span className="text-mute">{r.entry.platform}</span>
               <span className="ml-auto text-sm text-mute">leaf #{r.idx}</span>
             </li>
           ))}
