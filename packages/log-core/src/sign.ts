@@ -1,14 +1,25 @@
 // Ed25519 signing payloads (defined ONCE here; see fixtures/README) and sign/verify helpers.
 // Keys and signatures are base64. Browser-safe.
 import * as ed from "@noble/ed25519";
-import { sha512 } from "@noble/hashes/sha2.js";
+import { sha256, sha512 } from "@noble/hashes/sha2.js";
 import { canonicalBytes, type ReleaseEntry, type STH } from "@uw/shared";
 import { hashLeaf } from "./merkle.js";
 
 ed.hashes.sha512 = sha512; // enables the sync API
 
 const enc = (b: Uint8Array) => btoa(String.fromCharCode(...b));
-const dec = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const B64 = /^[A-Za-z0-9+/]+={0,2}$/;
+/** Strict base64: canonical form only (no whitespace, no stripped padding, no stray trailing bits) and an exact byte length.
+ *  Prevents one signature or key from having several accepted spellings. Throws on anything else. */
+function dec(s: string, len: number): Uint8Array {
+  if (typeof s !== "string" || !B64.test(s) || s.length % 4 !== 0) throw new Error("bad base64");
+  const b = Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  if (enc(b) !== s || b.length !== len) throw new Error("non-canonical or wrong-length base64");
+  return b;
+}
+
+/** Deterministic PUBLIC dev/test secret key for a purpose ("log", "vendor", ...). Never use outside demos and tests. */
+export const devSecret = (purpose: string) => enc(sha256(new TextEncoder().encode(`uw-dev-key/${purpose}`)));
 
 export type Unsigned<T, K extends keyof T> = Omit<T, K>;
 export type STHBody = Pick<STH, "logId" | "treeSize" | "rootHash" | "timestamp">;
@@ -25,9 +36,16 @@ export const cosigPayload = (s: STHBody, witnessId: string, timestamp: string) =
 export const leafHashOfEntry = (e: ReleaseEntry) => hashLeaf(canonicalBytes(e));
 
 export function generateKeypair() { const k = ed.keygen(); return { secretKey: enc(k.secretKey), publicKey: enc(k.publicKey) }; }
-export const publicKeyOf = (secretKey: string) => enc(ed.getPublicKey(dec(secretKey)));
-const sign = (msg: Uint8Array, secretKey: string) => enc(ed.sign(msg, dec(secretKey)));
-const verify = (sig: string, msg: Uint8Array, pub: string) => { try { return ed.verify(dec(sig), msg, dec(pub)); } catch { return false; } };
+export const publicKeyOf = (secretKey: string) => enc(ed.getPublicKey(dec(secretKey, 32)));
+const sign = (msg: Uint8Array, secretKey: string) => enc(ed.sign(msg, dec(secretKey, 32)));
+/** Strict RFC 8032 verification (zip215:false), and small-order public keys are rejected (the identity key would verify any message under ZIP215). */
+const verify = (sig: string, msg: Uint8Array, pub: string) => {
+  try {
+    const p = dec(pub, 32), s = dec(sig, 64);
+    if (ed.Point.fromBytes(p, false).isSmallOrder()) return false;
+    return ed.verify(s, msg, p, { zip215: false });
+  } catch { return false; }
+};
 
 export const signEntry = (e: Unsigned<ReleaseEntry, "vendorSig">, vendorSecret: string): ReleaseEntry => ({ ...e, vendorSig: sign(entryPayload(e), vendorSecret) });
 export const verifyEntry = (e: ReleaseEntry, vendorPublic: string) => { const { vendorSig, ...rest } = e; return verify(vendorSig, entryPayload(rest), vendorPublic); };
