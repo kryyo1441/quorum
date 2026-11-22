@@ -1,0 +1,17 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+model Leaf {
+  idx       Int      @id            // leaf index, append-only
+  entry     Json                    // canonical ReleaseEntry
+  leafHash  String                  // SHA256(0x00 || canonical(entry))
+  createdAt DateTime @default(now())
+}
+
+model Sth {
+  treeSize  Int      @id
+  rootHash  String
+  timestamp String
+  logSig    String
+  cosigs    Json     @default("[]")
+}
