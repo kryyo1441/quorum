@@ -7,6 +7,6 @@
     "db:migrate": "prisma migrate dev",
     "test": "vitest run"
   },
-  "dependencies": { "hono": "^4", "@hono/node-server": "^1", "@prisma/client": "^6", "@uw/shared": "workspace:*" },
+  "dependencies": { "hono": "^4", "@hono/node-server": "^1", "@prisma/client": "^6", "@uw/log-core": "workspace:*", "@uw/shared": "workspace:*" },
   "devDependencies": { "prisma": "^6", "tsx": "^4", "vitest": "^3", "typescript": "^5", "@types/node": "^22" }
 }
