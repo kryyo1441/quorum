@@ -8,6 +8,12 @@ importers:
 
   .:
     devDependencies:
+      '@noble/hashes':
+        specifier: ^2
+        version: 2.4.0
+      tsx:
+        specifier: ^4
+        version: 4.23.15
       turbo:
         specifier: ^2
         version: 2.11.13
