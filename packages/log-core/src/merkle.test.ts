@@ -99,7 +99,12 @@ test("roots of the standard 8 CT leaves for sizes 1..8", () => {
 test("CompactTree root equals rootHash at every size", () => {
   const L = data(70).map(hashLeaf), t = new CompactTree();
   expect(t.root()).toBe(emptyRoot());
-  for (let n = 1; n <= 70; n++) { t.append(L[n - 1]); expect(t.root(), `n=${n}`).toBe(rootHash(L.slice(0, n))); expect(t.size).toBe(n); }
+  for (let n = 1; n <= 70; n++) {
+    const path = t.append(L[n - 1]);
+    expect(t.root(), `n=${n}`).toBe(rootHash(L.slice(0, n))); expect(t.size).toBe(n);
+    expect(path, `path n=${n}`).toEqual(inclusionPath(L.slice(0, n), n - 1)); // append returns the new leaf's inclusion path
+    expect(verifyInclusion(L[n - 1], n - 1, n, path, t.root())).toBe(true);
+  }
   expect(new CompactTree(L.slice(0, 33)).root()).toBe(rootHash(L.slice(0, 33)));
 });
 test("forks: a rewritten past leaf never yields a proof that verifies against the honest old root", () => {

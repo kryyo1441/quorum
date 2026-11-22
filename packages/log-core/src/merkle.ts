@@ -31,13 +31,18 @@ export class CompactTree {
   private n = 0;
   constructor(leaves: string[] = []) { for (const l of leaves) this.append(l); }
   get size() { return this.n; }
-  append(leafHash: string) {
+  /** Appends a leaf and returns its inclusion path in the tree of the new size (equals inclusionPath(all, size-1)). */
+  append(leafHash: string): string[] {
     let cur = { size: 1, hash: leafHash };
+    const path: string[] = []; // left siblings met while merging, bottom-up
     while (this.stack.length && this.stack[this.stack.length - 1].size === cur.size) {
       const left = this.stack.pop()!;
+      path.push(left.hash);
       cur = { size: cur.size * 2, hash: hashChildren(left.hash, cur.hash) };
     }
+    for (let i = this.stack.length - 1; i >= 0; i--) path.push(this.stack[i].hash); // then the remaining perfect subtrees, right to left
     this.stack.push(cur); this.n++;
+    return path;
   }
   root(): string {
     if (!this.stack.length) return emptyRoot();
