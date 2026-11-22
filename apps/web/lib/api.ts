@@ -16,3 +16,15 @@ export async function witnessesOnline(): Promise<number> {
   const up = await Promise.all(WITNESSES.map((w) => fetch(`${w}/health`, { cache: "no-store", signal: AbortSignal.timeout(1000) }).then((r) => r.ok).catch(() => false)));
   return up.filter(Boolean).length;
 }
+
+export type Head = import("@uw/shared").STH;
+export async function getHeads(): Promise<Head[] | null> {
+  try { const r = await fetch(`${LOG}/sths`, { cache: "no-store", signal: AbortSignal.timeout(2000) }); return r.ok ? await r.json() : null; } catch { return null; }
+}
+export async function getLogKey(): Promise<string | null> {
+  try { const r = await fetch(`${LOG}/key`, { cache: "no-store", signal: AbortSignal.timeout(2000) }); return r.ok ? (await r.json()).publicKey : null; } catch { return null; }
+}
+/** Untrusted proof from the log; the browser verifies it, we only relay. */
+export async function getProof(idx: number, treeSize: number): Promise<string[] | null> {
+  try { const r = await fetch(`${LOG}/entries/${idx}/proof?treeSize=${treeSize}`, { cache: "no-store", signal: AbortSignal.timeout(2000) }); return r.ok ? (await r.json()).path : null; } catch { return null; }
+}
