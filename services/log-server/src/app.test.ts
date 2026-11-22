@@ -41,6 +41,14 @@ test("proofs are computed at the requested size, so an older head still verifies
   expect((await app.request(`/proof?leafHash=${leafHashOfEntry(entries[4])}&treeSize=3`)).status).toBe(404); // not in that smaller tree
 });
 
+test("sths lists one verifiable head per size", async () => {
+  const { app, id } = setup();
+  for (let i = 0; i < 4; i++) await post(app, entry(i));
+  const heads = await json(app.request("/sths"));
+  expect(heads.map((h: any) => h.treeSize)).toEqual([1, 2, 3, 4]);
+  for (const h of heads) expect(verifyLogSig(h, id.publicKey)).toBe(true);
+});
+
 test("consistency proofs between heads verify; bad ranges are 400", async () => {
   const { app } = setup();
   for (let i = 0; i < 6; i++) await post(app, entry(i));
