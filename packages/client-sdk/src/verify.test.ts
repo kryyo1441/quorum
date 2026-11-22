@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { generateKeypair, leafHashOfEntry, signEntry } from "@uw/log-core";
+import { cosign, generateKeypair, leafHashOfEntry, signEntry } from "@uw/log-core";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { verifyUpdate, type Deps, type VerifyConfig } from "./verify.js";
+import { checkUpdate, compareVersions, verifyUpdate, type Deps, type VerifyConfig } from "./verify.js";
 
 const v = JSON.parse(readFileSync(new URL("../../../fixtures/vectors.json", import.meta.url), "utf8"));
 const binaryOf = (i: number) => new TextEncoder().encode(`binary-${i}`); // matches fixtures/generate.ts
@@ -60,7 +60,7 @@ test("duplicate cosigs from one witness count once", async () => {
   await fails(run(2, cfg(), world({ sth: { ...v.sth, cosigs: [c, c, c] } })), "INSUFFICIENT_COSIGS");
 });
 test("a cosig relabeled to another witness is rejected", async () => fails(run(2, cfg({ threshold: 3 }), world({ sth: v.tampered.sthCosigWrongWitness })), "INSUFFICIENT_COSIGS"));
-test("#6 old cosignatures -> STALE_STH (24h default and 5-minute demo window)", async () => {
+test("old cosignatures -> STALE_STH (24h default and 5-minute demo window)", async () => {
   const late = { ...world(), now: () => NOW + 25 * 3600 * 1000 };
   await fails(run(2, cfg(), late), "STALE_STH");
   const demo = { ...world(), now: () => NOW + 6 * 60 * 1000 };
@@ -94,4 +94,69 @@ test("garbage from the log never throws and never passes", async () => {
   expect(await run(5, cfg(), bad)).toMatchObject({ ok: false });
   const boom = { fetch: (async () => { throw new TypeError("boom"); }) as typeof fetch, now: () => NOW };
   expect(await run(5, cfg(), boom)).toMatchObject({ ok: false });
+});
+
+// ---- added after the independent review ----
+const WIN = { app: "notepad-minus", platform: "win-x64" }; // fixture entries i % 3 === 0 are win-x64 (2.0.0, 2.0.3, ..., 2.0.12, 2.0.15)
+
+test("#6 REAL downgrade: an old release with a valid proof against today's fresh head is blocked", async () => {
+  // entries[3] (2.0.3) is in the log, validly signed, and provable against the current head, but the client runs 2.0.9.
+  const r = await run(3, cfg({ expected: { ...WIN, installedVersion: "2.0.9" } }));
+  expect(r).toMatchObject({ ok: false, reason: "STALE_STH" });
+  expect((r as any).detail).toMatch(/downgrade/);
+  // control: the same release verifies when the client is older than it
+  expect(await run(3, cfg({ expected: { ...WIN, installedVersion: "2.0.2" } }))).toMatchObject({ ok: true });
+  // upgrade path
+  expect(await run(12, cfg({ expected: { ...WIN, installedVersion: "2.0.9" } }))).toMatchObject({ ok: true });
+});
+test("reinstalling the same version is not an update", async () => fails(run(12, cfg({ expected: { ...WIN, installedVersion: "2.0.12" } })), "STALE_STH"));
+test("unparseable versions fail closed", async () => fails(run(12, cfg({ expected: { ...WIN, installedVersion: "banana" } })), "STALE_STH"));
+test("cross-platform and cross-app substitution are blocked when the install target is pinned", async () => {
+  await fails(run(2, cfg({ expected: WIN })), "NOT_IN_LOG");                                  // entries[2] is linux-x64
+  await fails(run(3, cfg({ expected: { app: "other-app", platform: "win-x64" } })), "NOT_IN_LOG");
+  expect(await run(3, cfg({ expected: WIN }))).toMatchObject({ ok: true });
+});
+test("without `expected` the target check is reported as SKIPPED, not silently passed", async () => {
+  const { checks } = await checkUpdate(binaryOf(3), v.entries[3], cfg(), world());
+  expect(checks.find((c) => c.id === "target")).toMatchObject({ status: "skip" });
+});
+test("compareVersions is numeric, not lexicographic, and orders prereleases below the release", () => {
+  expect(compareVersions("2.0.10", "2.0.9")).toBeGreaterThan(0);
+  expect(compareVersions("2.1.0", "2.0.99")).toBeGreaterThan(0);
+  expect(compareVersions("2.1.0-rc1", "2.1.0")).toBeLessThan(0);
+  expect(compareVersions("2.1.0", "2.1.0")).toBe(0);
+  expect(compareVersions("x", "1.0.0")).toBeUndefined();
+});
+
+test("nonsense config fails closed: threshold 0, negative, fractional, NaN, above n; duplicate witnesses; bad maxAgeMs", async () => {
+  const noCosigs = world({ sth: { ...v.sth, cosigs: [] } });
+  for (const t of [0, -1, 1.5, NaN, 4, Infinity]) await fails(run(2, cfg({ threshold: t }), noCosigs), "INSUFFICIENT_COSIGS");
+  await fails(run(2, cfg({ threshold: 0, witnesses: [] }), noCosigs), "INSUFFICIENT_COSIGS");
+  const dup = cfg(); dup.witnesses[1] = { ...dup.witnesses[0], id: "w2" };                       // same key under two ids
+  await fails(run(2, dup), "INSUFFICIENT_COSIGS");
+  for (const m of [Infinity, 0, -5, NaN]) await fails(run(2, cfg({ maxAgeMs: m })), "STALE_STH");
+  expect(await run(2, cfg({ maxAgeMs: Infinity }), { ...world(), now: () => NOW + 365 * 24 * 3600 * 1000 })).toMatchObject({ ok: false });
+});
+
+test("newest valid cosig per witness counts (heartbeat re-cosign must not fail on the older one)", async () => {
+  const body = { logId: v.sth.logId, treeSize: v.sth.treeSize, rootHash: v.sth.rootHash, timestamp: v.sth.timestamp };
+  const old = cosign(body, "w1", v.keys.w1.secretKey, new Date(NOW - 25 * 3600 * 1000).toISOString());
+  const sth = { ...v.sth, cosigs: [old, v.sth.cosigs[0], v.sth.cosigs[1]] }; // [w1 old, w1 fresh, w2 fresh]
+  expect(await run(2, cfg(), world({ sth }))).toMatchObject({ ok: true });
+});
+test("cosigs dated far in the future are not fresh (only a small clock skew is tolerated)", async () => {
+  await fails(run(2, cfg(), { ...world(), now: () => NOW - 23 * 3600 * 1000 }), "STALE_STH");
+  expect(await run(2, cfg(), { ...world(), now: () => NOW - 4 * 60 * 1000 })).toMatchObject({ ok: true });
+});
+
+test("malformed manifests (lone surrogate, extra field, wrong types) fail as BAD_VENDOR_SIG and never throw", async () => {
+  for (const m of [{ ...v.entries[3], app: "\uD800" }, { ...v.entries[3], extra: 1 }, { ...v.entries[3], size: "big" }, null, "x", {}])
+    await fails(run(3, cfg(), world(), m as any), "BAD_VENDOR_SIG");
+  const { checks } = await checkUpdate(binaryOf(3), { ...v.entries[3], app: "\uD800" }, cfg(), world());
+  expect(checks.map((c) => c.id)).toHaveLength(8); // every check still reported
+});
+test("prototype-ish vendor key ids and a proof response's own treeSize/leafHash claims are ignored", async () => {
+  await fails(run(3, cfg({ vendorPublicKeys: {} }), world(), { ...v.entries[3], vendorKeyId: "constructor" }), "BAD_VENDOR_SIG");
+  const lying = { ...v.inclusion[3], treeSize: 999, leafHash: "f".repeat(64) };
+  expect(await run(3, cfg(), world({ proofOverride: lying }))).toMatchObject({ ok: true });
 });
