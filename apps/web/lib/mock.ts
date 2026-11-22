@@ -22,7 +22,7 @@ export const scenarios: Scenario[] = [
   { id: 5, name: "Log shows target a forked tree (split view)", expect: "INSUFFICIENT_COSIGS" },
   { id: 6, name: "Replay of an old vulnerable release (downgrade)", expect: "STALE_STH" },
   { id: 7, name: "One witness compromised, cosigns anything", expect: "INSUFFICIENT_COSIGS" },
-  { id: 8, name: "Log or witnesses unreachable", expect: "FAIL_CLOSED" },
+  { id: 8, name: "Log or witnesses unreachable", expect: "NOT_IN_LOG / INSUFFICIENT_COSIGS" },
   { id: 9, name: "Stored log leaf tampered in Postgres", expect: "BAD_INCLUSION_PROOF" },
   { id: 10, name: "Two clients told different hashes for one version", expect: "HASH_MISMATCH" },
 ];
