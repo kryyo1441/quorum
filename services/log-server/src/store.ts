@@ -8,6 +8,7 @@ export interface LogStore {
   all(): Promise<Leaf[]>;
   saveSth(sth: STH): Promise<void>;   // idempotent per treeSize
   sthAt(size: number): Promise<STH | undefined>;
+  allSths(): Promise<STH[]>;          // ascending by treeSize, one query
   latestSth(): Promise<STH | undefined>;
 }
 
@@ -18,6 +19,7 @@ export function memoryStore(): LogStore {
     all: async () => [...rows],
     saveSth: async (s) => { if (!heads.has(s.treeSize)) heads.set(s.treeSize, s); },
     sthAt: async (n) => heads.get(n),
-    latestSth: async () => heads.get(Math.max(0, ...heads.keys())),
+    allSths: async () => [...heads.values()].sort((a, b) => a.treeSize - b.treeSize),
+    latestSth: async () => [...heads.values()].reduce<STH | undefined>((m, h) => (!m || h.treeSize > m.treeSize ? h : m), undefined),
   };
 }
