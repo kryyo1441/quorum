@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { createApp as updateServer } from "../../services/update-server/src/app.js";
 import { createApp as witness } from "../../services/witness/src/app.js";
 import { stubCore } from "../../services/witness/src/core.js";
+import { devSecret } from "@uw/log-core";
 import { attack1, runFleet, seed, type Env } from "./fleet.js";
 
 // In-process wiring: route fetch by host so no ports are needed.
@@ -13,7 +14,7 @@ function env(): { e: Env; witnesses: ReturnType<typeof witness>[] } {
     const app = u.host === "update" ? upd : witnesses[Number(u.host.slice(1)) - 1];
     return Promise.resolve(app.request(u.pathname + u.search, init));
   }) as typeof fetch;
-  return { e: { updateUrl: "http://update", witnessUrls: ["http://w1", "http://w2", "http://w3"], fetch: f }, witnesses };
+  return { e: { vendor: { keyId: "demo", secretKey: devSecret("vendor") }, updateUrl: "http://update", witnessUrls: ["http://w1", "http://w2", "http://w3"], fetch: f }, witnesses };
 }
 
 test("attack 1 + 10: only the targeted client is blocked, every witness flags the mismatch", async () => {
