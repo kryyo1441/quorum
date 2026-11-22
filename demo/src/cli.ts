@@ -2,6 +2,7 @@ import { attack1, clientIds, reset, runFleet, seed, type Env } from "./fleet.js"
 
 const env: Env = {
   updateUrl: process.env.UPDATE_URL ?? "http://localhost:4001",
+  logUrl: process.env.LOG_URL ?? "http://localhost:4000",
   witnessUrls: (process.env.WITNESS_URLS ?? "http://localhost:4101,http://localhost:4102,http://localhost:4103").split(","),
   fetch,
 };

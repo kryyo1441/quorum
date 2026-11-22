@@ -2,7 +2,7 @@ import { createHash, createHmac } from "node:crypto";
 import type { Observation, ReleaseEntry } from "@uw/shared";
 
 export type Fetch = typeof fetch;
-export type Env = { updateUrl: string; witnessUrls: string[]; fetch: Fetch };
+export type Env = { updateUrl: string; witnessUrls: string[]; logUrl?: string; fetch: Fetch };
 export type ClientResult = { id: string; state: "verified" | "blocked"; reason?: "HASH_MISMATCH"; sha256: string };
 
 export const sha256 = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
@@ -12,11 +12,12 @@ export const GOOD = new TextEncoder().encode("notepad-minus 2.1.0 genuine build"
 export const EVIL = new TextEncoder().encode("notepad-minus 2.1.0 TAMPERED build");
 export const APP = "notepad-minus", VERSION = "2.1.0", PLATFORM = "win-x64";
 
-/** Publish a release to the update server. ponytail: vendorSig is a placeholder, real signing + log append arrive with log-server. */
+/** Publish a release to the update server (and the log, when logUrl is set). ponytail: vendorSig is a placeholder, real vendor signing arrives with the client-sdk/vendor CLI. */
 export async function seed(e: Env) {
   const entry: ReleaseEntry = { app: APP, version: VERSION, platform: PLATFORM, sha256: sha256(GOOD), size: GOOD.length,
     url: `${e.updateUrl}/download/${APP}/${VERSION}/${PLATFORM}`, publishedAt: new Date().toISOString(), vendorKeyId: "demo", vendorSig: "unsigned-demo" };
   await e.fetch(`${e.updateUrl}/admin/release`, { method: "POST", body: JSON.stringify({ entry, binary: Buffer.from(GOOD).toString("base64") }) });
+  if (e.logUrl) await e.fetch(`${e.logUrl}/entries`, { method: "POST", body: JSON.stringify(entry) });
   return entry;
 }
 export const attack1 = (e: Env, clientId: string) =>
