@@ -8,7 +8,7 @@ export default function Log() {
     <>
       <Title sub="An append-only Merkle tree. Pick a leaf to see the path that proves it is in the log.">Log explorer</Title>
       <Merkle />
-      <h2 className="mb-5 mt-14 text-3xl font-medium">Signed tree heads</h2>
+      <div className="mb-5 mt-14 flex items-center gap-4"><h2 className="text-3xl font-medium">Signed tree heads</h2><Badge tone="mute">mock until log-core</Badge></div>
       <div className="grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))]">
         {[...sths].reverse().map((s, i) => (
           <Card key={s.treeSize} delay={i * 80}>
