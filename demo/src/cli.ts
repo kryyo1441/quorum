@@ -1,6 +1,10 @@
+import { devSecret } from "@uw/log-core";
 import { attack1, clientIds, reset, runFleet, seed, type Env } from "./fleet.js";
 
+// Vendor key: VENDOR_SECRET_KEY (+ VENDOR_KEY_ID), or the PUBLIC dev key when DEV=1. Never both missing.
+if (!process.env.VENDOR_SECRET_KEY && process.env.DEV !== "1") throw new Error("set VENDOR_SECRET_KEY (or DEV=1 for the public dev key)");
 const env: Env = {
+  vendor: { keyId: process.env.VENDOR_KEY_ID ?? "demo", secretKey: process.env.VENDOR_SECRET_KEY ?? devSecret("vendor") },
   updateUrl: process.env.UPDATE_URL ?? "http://localhost:4001",
   logUrl: process.env.LOG_URL ?? "http://localhost:4000",
   witnessUrls: (process.env.WITNESS_URLS ?? "http://localhost:4101,http://localhost:4102,http://localhost:4103").split(","),
