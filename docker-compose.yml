@@ -13,7 +13,11 @@ services:
   log-server:
     <<: *node
     build: { context: ., args: { PKG: "@uw/log-server" } }
-    environment: { PORT: 4000, DATABASE_URL: "postgresql://uw:uw@postgres:5432/uw" }
+    environment:
+      PORT: 4000
+      DATABASE_URL: "postgresql://uw:uw@postgres:5432/uw"
+      LOG_SECRET_KEY: ${LOG_SECRET_KEY:?run `pnpm env:init` first}
+      VENDOR_PUBLIC_KEYS: ${VENDOR_PUBLIC_KEYS:?run `pnpm env:init` first}
     ports: ["4000:4000"]
     depends_on: { postgres: { condition: service_healthy } }
 
@@ -41,7 +45,10 @@ services:
   web:
     <<: *node
     build: { context: ., args: { PKG: "@uw/web" } }
+    # demo only: the publish dialog signs server-side, so web holds the vendor secret. A real vendor keeps it offline.
     environment:
+      VENDOR_KEY_ID: ${VENDOR_KEY_ID:?run `pnpm env:init` first}
+      VENDOR_SECRET_KEY: ${VENDOR_SECRET_KEY:?run `pnpm env:init` first}
       LOG_URL: http://log-server:4000
       WITNESS_URLS: http://witness-1:4101,http://witness-2:4102,http://witness-3:4103
     ports: ["3000:3000"]
