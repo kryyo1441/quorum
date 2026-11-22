@@ -5,12 +5,15 @@
   "scripts": {
     "build": "turbo build",
     "test": "turbo test",
-    "dev": "turbo dev"
+    "dev": "turbo dev",
+    "fixtures": "tsx fixtures/generate.ts"
   },
   "devDependencies": {
     "turbo": "^2",
     "typescript": "^5",
-    "vitest": "^3"
+    "vitest": "^3",
+    "tsx": "^4",
+    "@noble/hashes": "^2"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
