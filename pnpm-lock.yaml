@@ -66,6 +66,9 @@ importers:
 
   demo:
     dependencies:
+      '@uw/log-core':
+        specifier: workspace:*
+        version: link:../packages/log-core
       '@uw/shared':
         specifier: workspace:*
         version: link:../packages/shared
