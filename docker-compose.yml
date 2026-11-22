@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: postgres:17
+    environment: { POSTGRES_USER: uw, POSTGRES_PASSWORD: uw, POSTGRES_DB: uw }
+    ports: ["5432:5432"]
+    volumes: ["pg:/var/lib/postgresql/data"]
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "uw"], interval: 2s, retries: 15 }
+volumes: { pg: {} }
+# ponytail: only postgres for now; log, 3 witnesses, update-server, web added as they exist.
