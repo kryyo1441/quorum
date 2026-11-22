@@ -2,21 +2,19 @@
 import { useRef, useState } from "react";
 import { Laptop, Monitor, Plus, ShieldAlert, ShieldCheck, Terminal } from "lucide-react";
 import { Badge, Card } from "./ui";
-import { platforms, releases as seed, short, type Platform, type Release } from "@/lib/mock";
+import { platforms, short, type Release } from "@/lib/mock";
+import { publishRelease } from "@/app/releases/actions";
 
 const Icon = { "win-x64": Monitor, "mac-arm64": Laptop, "linux-x64": Terminal } as const;
 
-export function ReleasesTable() {
-  const [rows, setRows] = useState<Release[]>(seed);
+export function ReleasesTable({ rows: logged }: { rows: Omit<Release, "approved">[] }) {
+  // ponytail: approved list is local UI state; persisted list arrives with the vendor monitor.
+  const [off, setOff] = useState<Set<number>>(new Set());
+  const rows: Release[] = logged.map((r) => ({ ...r, approved: !off.has(r.idx) }));
   const dlg = useRef<HTMLDialogElement>(null);
   const unapproved = rows.filter((r) => !r.approved);
 
-  const publish = (f: FormData) => {
-    const sha256 = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
-    // ponytail: local-only until log-server exists; then POST /entries via the vendor CLI path.
-    setRows((r) => [...r, { idx: r.length, app: String(f.get("app")), version: String(f.get("version")), platform: f.get("platform") as Platform, sha256, publishedAt: new Date().toISOString(), approved: true }]);
-    dlg.current?.close();
-  };
+  const publish = async (f: FormData) => { await publishRelease(f); dlg.current?.close(); };
 
   return (
     <>
@@ -45,7 +43,7 @@ export function ReleasesTable() {
                   <td className="px-6 py-5 font-mono text-mute" title={r.sha256}>{short(r.sha256)}</td>
                   <td className="px-6 py-5 font-mono">#{r.idx}</td>
                   <td className="px-6 py-5">
-                    <button onClick={() => setRows((x) => x.map((y) => y.idx === r.idx ? { ...y, approved: !y.approved } : y))} aria-label="toggle approved">
+                    <button onClick={() => setOff((s) => { const n = new Set(s); n.has(r.idx) ? n.delete(r.idx) : n.add(r.idx); return n; })} aria-label="toggle approved">
                       {r.approved ? <Badge tone="ok"><ShieldCheck className="size-4" />approved</Badge> : <Badge tone="bad"><ShieldAlert className="size-4" />unapproved</Badge>}
                     </button>
                   </td>
