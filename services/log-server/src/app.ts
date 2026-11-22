@@ -26,6 +26,11 @@ export function createApp(store: LogStore, id: LogIdentity) {
   });
 
   app.get("/sth", async (c) => { const h = await store.latestSth(); return h ? c.json(h) : c.json({ error: "no signed tree head yet" }, 404); });
+  app.get("/sths", async (c) => {
+    const n = (await store.all()).length, out = [];
+    for (let i = 1; i <= n; i++) { const h = await store.sthAt(i); if (h) out.push(h); }
+    return c.json(out);
+  });
   app.get("/sth/:size", async (c) => { const h = await store.sthAt(Number(c.req.param("size"))); return h ? c.json(h) : c.json({ error: "not found" }, 404); });
 
   /** Inclusion proof, by leaf hash (what a client knows) or by index, at `treeSize` (default: latest head). */
