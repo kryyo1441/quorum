@@ -1,3 +1,7 @@
+x-node: &node
+  build: { context: ., args: { PKG: "" } }
+  restart: unless-stopped
+
 services:
   postgres:
     image: postgres:17
@@ -5,5 +9,42 @@ services:
     ports: ["5432:5432"]
     volumes: ["pg:/var/lib/postgresql/data"]
     healthcheck: { test: ["CMD", "pg_isready", "-U", "uw"], interval: 2s, retries: 15 }
+
+  log-server:
+    <<: *node
+    build: { context: ., args: { PKG: "@uw/log-server" } }
+    environment: { PORT: 4000, DATABASE_URL: "postgresql://uw:uw@postgres:5432/uw" }
+    ports: ["4000:4000"]
+    depends_on: { postgres: { condition: service_healthy } }
+
+  update-server:
+    <<: *node
+    build: { context: ., args: { PKG: "@uw/update-server" } }
+    environment: { PORT: 4001 }
+    ports: ["4001:4001"]
+
+  # ponytail: witnesses are in-memory (stub core); per-witness Postgres schema arrives with witness-core.
+  witness-1: &witness
+    <<: *node
+    build: { context: ., args: { PKG: "@uw/witness" } }
+    environment: { WITNESS_ID: w1, PORT: 4101 }
+    ports: ["4101:4101"]
+  witness-2:
+    <<: *witness
+    environment: { WITNESS_ID: w2, PORT: 4102 }
+    ports: ["4102:4102"]
+  witness-3:
+    <<: *witness
+    environment: { WITNESS_ID: w3, PORT: 4103 }
+    ports: ["4103:4103"]
+
+  web:
+    <<: *node
+    build: { context: ., args: { PKG: "@uw/web" } }
+    environment:
+      LOG_URL: http://log-server:4000
+      WITNESS_URLS: http://witness-1:4101,http://witness-2:4102,http://witness-3:4103
+    ports: ["3000:3000"]
+    depends_on: [log-server]
+
 volumes: { pg: {} }
-# ponytail: only postgres for now; log, 3 witnesses, update-server, web added as they exist.
