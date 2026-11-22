@@ -29,7 +29,7 @@ export function createApp() {
     const hit = releases.get(key(c.req.param("app"), c.req.param("version"), c.req.param("platform")));
     if (!hit) return c.json({ error: "not found" }, 404);
     const evil = targets.get(c.req.query("client") ?? "");
-    return new Response(evil ?? hit.binary, { headers: { "content-type": "application/octet-stream" } });
+    return new Response(new Uint8Array(evil ?? hit.binary), { headers: { "content-type": "application/octet-stream" } });
   });
   return app;
 }
