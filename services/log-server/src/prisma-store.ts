@@ -15,6 +15,7 @@ export function prismaStore(logId: string, db = new PrismaClient()): LogStore {
     all: async () => (await db.leaf.findMany({ orderBy: { idx: "asc" } })).map(row),
     saveSth: async (s) => { await db.sth.createMany({ data: [{ treeSize: s.treeSize, rootHash: s.rootHash, timestamp: s.timestamp, logSig: s.logSig, cosigs: s.cosigs as object[] }], skipDuplicates: true }); },
     sthAt: async (n) => { const r = await db.sth.findUnique({ where: { treeSize: n } }); return r ? sth(r) : undefined; },
+    allSths: async () => (await db.sth.findMany({ orderBy: { treeSize: "asc" } })).map(sth),
     latestSth: async () => { const r = await db.sth.findFirst({ orderBy: { treeSize: "desc" } }); return r ? sth(r) : undefined; },
   };
 }
