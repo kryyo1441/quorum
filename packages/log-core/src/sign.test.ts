@@ -38,3 +38,32 @@ test("cosig binds witness id, cosig timestamp and the head, and is not a log sig
   expect(verifyCosig({ ...sth, rootHash: "c".repeat(64) }, c, w.publicKey)).toBe(false);
   expect(verifyLogSig({ ...sth, logSig: c.sig }, w.publicKey)).toBe(false); // domain separation
 });
+
+// ---- added after the independent review ----
+import { devSecret } from "./sign.js";
+const b64 = (u: Uint8Array) => btoa(String.fromCharCode(...u));
+const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+test("signatures and keys have exactly one accepted spelling", () => {
+  const v = generateKeypair(), e = signEntry(unsigned, v.secretKey), sig = e.vendorSig;
+  expect(sig.endsWith("==")).toBe(true); // 64 bytes -> padded; stripping padding must not verify
+  const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", ti = A.indexOf(sig.at(-3)!); // last data char: 4 data bits + 2 unused bits
+  const trailing = (x: number) => sig.slice(0, -3) + A[ti ^ x] + "==";
+  for (const bad of [sig.slice(0, -2), " " + sig, sig + "\n", trailing(1), trailing(2), trailing(3)])
+    expect(verifyEntry({ ...e, vendorSig: bad }, v.publicKey), JSON.stringify(bad)).toBe(false);
+  expect(verifyEntry(e, " " + v.publicKey)).toBe(false);
+  expect(verifyEntry(e, v.publicKey.slice(0, -1))).toBe(false);
+  expect(verifyEntry({ ...e, vendorSig: b64(unb64(sig).slice(0, 63)) }, v.publicKey)).toBe(false);
+});
+
+test("small-order public keys never verify (identity key + zero signature would pass under ZIP-215)", () => {
+  const identity = new Uint8Array(32); identity[0] = 1;                       // the neutral point
+  const sig = new Uint8Array(64); sig[0] = 1;                                  // R = identity, S = 0
+  expect(verifyEntry({ ...signEntry(unsigned, generateKeypair().secretKey), vendorSig: b64(sig) }, b64(identity))).toBe(false);
+});
+
+test("devSecret is deterministic, purpose-separated, and a valid key", () => {
+  expect(devSecret("log")).toBe(devSecret("log"));
+  expect(devSecret("log")).not.toBe(devSecret("vendor"));
+  expect(publicKeyOf(devSecret("log"))).toMatch(/^[A-Za-z0-9+/]{43}=$/);
+});
