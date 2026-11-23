@@ -10,8 +10,8 @@ export async function pgState(url: string, id: string) {
   let chain: Promise<unknown> = Promise.resolve();
   return {
     load: async (): Promise<WitnessSnapshot | undefined> => (await db.query(`SELECT v FROM "${schema}".state WHERE k = 'snapshot'`)).rows[0]?.v,
-    /** Writes are queued so snapshots land in order; a failed write is reported, never swallowed silently. */
-    save: (s: WitnessSnapshot) => { chain = chain.then(() => db.query(`INSERT INTO "${schema}".state (k, v) VALUES ('snapshot', $1) ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v`, [JSON.stringify(s)])).catch((e) => console.error("could not persist witness state:", e.message)); return chain; },
+    /** Writes are queued so snapshots land in order. A failed write REJECTS (the core then refuses to sign); the queue itself keeps going. */
+    save: (s: WitnessSnapshot) => { const p = chain.then(() => db.query(`INSERT INTO "${schema}".state (k, v) VALUES ('snapshot', $1) ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v`, [JSON.stringify(s)])); chain = p.catch(() => {}); return p.then(() => {}); },
     close: () => db.end(),
   };
 }
