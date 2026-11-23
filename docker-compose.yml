@@ -1,7 +1,8 @@
-# One image for every service (identical build config, so docker builds it ONCE); each service picks its package with `command`.
+# One image for every service. Only log-server has a `build:`; the rest reuse the image it produces (several services building the same tag at once races).
+# Each service picks its package with `command`.
 x-node: &node
-  build: { context: . }
   image: quorum-app
+  pull_policy: never
   restart: unless-stopped
 
 services:
@@ -14,6 +15,8 @@ services:
 
   log-server:
     <<: *node
+    build: { context: . }
+    pull_policy: build
     command: pnpm --filter @uw/log-server start
     environment:
       PORT: 4000
