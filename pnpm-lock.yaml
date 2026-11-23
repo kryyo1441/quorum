@@ -66,6 +66,9 @@ importers:
 
   demo:
     dependencies:
+      '@hono/node-server':
+        specifier: ^1
+        version: 1.19.19(hono@4.13.20)
       '@uw/client-sdk':
         specifier: workspace:*
         version: link:../packages/client-sdk
@@ -78,6 +81,9 @@ importers:
       '@uw/witness-core':
         specifier: workspace:*
         version: link:../packages/witness-core
+      hono:
+        specifier: ^4
+        version: 4.13.20
     devDependencies:
       '@types/node':
         specifier: ^22

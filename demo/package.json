@@ -8,13 +8,16 @@
     "fleet": "tsx src/cli.ts fleet",
     "attack1": "tsx src/cli.ts attack1",
     "reset": "tsx src/cli.ts reset",
-    "test": "vitest run"
+    "test": "vitest run",
+    "start": "tsx src/server.ts"
   },
   "dependencies": {
     "@uw/log-core": "workspace:*",
     "@uw/shared": "workspace:*",
     "@uw/client-sdk": "workspace:*",
-    "@uw/witness-core": "workspace:*"
+    "@uw/witness-core": "workspace:*",
+    "hono": "^4",
+    "@hono/node-server": "^1"
   },
   "devDependencies": {
     "tsx": "^4",
