@@ -56,3 +56,4 @@ else {
 await post("/reset");
 console.log(failed ? `\n${failed} check(s) FAILED` : "\nall checks passed");
 process.exit(failed ? 1 : 0);
+export {};
