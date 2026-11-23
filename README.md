@@ -77,7 +77,9 @@ Our wedge is a drop-in SDK and a witness network for desktop apps and AI agent r
 - Fork detection needs at least one client to be shown the fork and verify: that client forwards the log-signed head it saw to every witness. A fork shown to nobody who verifies, or at a size the real log has not reached, is not provable.
 - A witness keeps its state in its own Postgres schema when `DATABASE_URL` is set (compose does). Without it, state is in memory and a restart is trust-on-first-use again.
 - No key rotation or revocation yet: after a stolen-key alert the vendor cannot yet retire the key in-band.
-- Downgrade protection needs the caller to configure `expected`; without it that check is reported as skipped.
+- Downgrade protection needs the caller to configure `expected` (app, platform, installed version); without it that check is reported as skipped. Versions compare by SemVer 2.0.0 precedence.
+- Freshness is measured on the witnesses' cosignature timestamps (a heartbeat), not on the age of the log's head. A log can therefore keep presenting an old head to witnesses that keep re-cosigning it (a freeze). Independent witnesses polling independently, and `expected`, narrow this; they do not remove it.
+- Witnesses decide whether the log holds a hash from the log's entry listing, which they authenticate against the head they cosigned; a listing that does not match the head is rejected and the witness fails closed.
 - Once the log is proven to have equivocated, every client fails closed until the operator is dealt with. The log operator can always do that by stopping the log.
 - Observations are pseudonymous and unauthenticated. That reduces but does not remove telemetry privacy concerns, and the alert scoping (docs/spec-amendments.md) exists so one bogus report cannot block a release for everyone.
 - The log is single-writer, only vendor-key holders can append, and there is no rate limiting.
