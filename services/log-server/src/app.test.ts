@@ -121,3 +121,39 @@ test("identity and vendor keys are required unless DEV=1", () => {
   expect(() => vendorKeys({ VENDOR_PUBLIC_KEYS: "[1]" })).toThrow();
   expect(verifyEntry(signEntry({ app: "a", version: "1.0.0", platform: "win-x64", sha256: "a".repeat(64), size: 1, url: "u", publishedAt: "2026-01-01T00:00:00.000Z", vendorKeyId: "demo" }, devSecret("vendor")), vendorKeys(dev).demo)).toBe(true);
 });
+
+// ---- witness cosignatures ----
+import { cosign } from "@uw/log-core";
+const wit = [generateKeypair(), generateKeypair(), generateKeypair()];
+const withWitnesses = (now = () => Date.parse("2026-06-01T00:00:00Z")) => {
+  const id = newIdentity(), store = memoryStore();
+  return { app: createApp(store, id, { k: vendor.publicKey }, { w1: wit[0].publicKey, w2: wit[1].publicKey }, now), id, store };
+};
+const cosigPost = (app: ReturnType<typeof createApp>, size: number, c: unknown) => app.request(`/sth/${size}/cosigs`, { method: "POST", body: JSON.stringify(c) });
+
+test("cosigs from registered witnesses are stored on the head; concurrent posts all land; newest per witness wins", async () => {
+  const { app } = withWitnesses();
+  await post(app, entry(0));
+  const h = await json(app.request("/sth/1"));
+  const c = (i: number, t: string) => cosign(h, `w${i + 1}`, wit[i].secretKey, t);
+  const rs = await Promise.all([cosigPost(app, 1, c(0, "2026-06-01T00:00:00.000Z")), cosigPost(app, 1, c(1, "2026-06-01T00:00:00.000Z"))]);
+  expect(rs.map((r) => r.status)).toEqual([201, 201]);
+  expect((await json(app.request("/sth"))).cosigs.map((x: any) => x.witnessId).sort()).toEqual(["w1", "w2"]);
+  expect((await cosigPost(app, 1, c(0, "2026-06-01T00:01:00.000Z"))).status).toBe(201); // heartbeat replaces, not appends
+  expect((await cosigPost(app, 1, c(0, "2026-06-01T00:00:30.000Z"))).status).toBe(200);  // an older one is ignored
+  const cosigs = (await json(app.request("/sth/1"))).cosigs;
+  expect(cosigs).toHaveLength(2);
+  expect(cosigs.find((x: any) => x.witnessId === "w1").timestamp).toBe("2026-06-01T00:01:00.000Z");
+});
+test("cosigs are rejected: unknown witness, wrong key, wrong head, far-future timestamp, malformed", async () => {
+  const { app } = withWitnesses();
+  await post(app, entry(0)); await post(app, entry(1));
+  const h1 = await json(app.request("/sth/1")), h2 = await json(app.request("/sth/2")), ts = "2026-06-01T00:00:00.000Z";
+  expect((await cosigPost(app, 1, cosign(h1, "w9", wit[2].secretKey, ts))).status).toBe(403);
+  expect((await cosigPost(app, 1, cosign(h1, "w1", wit[1].secretKey, ts))).status).toBe(403);
+  expect((await cosigPost(app, 1, cosign(h2, "w1", wit[0].secretKey, ts))).status).toBe(403); // a cosig for head 2 is not valid for head 1
+  expect((await cosigPost(app, 1, cosign(h1, "w1", wit[0].secretKey, "2026-06-01T01:00:00.000Z"))).status).toBe(400);
+  expect((await cosigPost(app, 7, cosign(h1, "w1", wit[0].secretKey, ts))).status).toBe(404);
+  expect((await cosigPost(app, 1, { nope: 1 })).status).toBe(400);
+  expect((await json(app.request("/sth/1"))).cosigs).toEqual([]);
+});
