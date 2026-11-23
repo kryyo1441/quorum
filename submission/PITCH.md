@@ -21,7 +21,7 @@ A client installs an update only if it is the same file everyone else was offere
 
 Diagram: vendor -> log (Merkle tree) <- 3 witnesses (consistency + cosign + gossip); client verifies 8 checks; clients report what they were offered; monitor tails the log.
 
-## 3. Live demo (see DEMO.md, 3 minutes)
+## 3. Live demo (see SCRIPT.md for the words and RUNBOOK.md for the steps, 3 minutes)
 
 ## 4. Scoreboard (from `/attack`, generated, not typed)
 
