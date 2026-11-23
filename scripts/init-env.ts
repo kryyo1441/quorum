@@ -15,6 +15,7 @@ writeFileSync(path, [
   `LOG_PUBLIC_KEY=${publicKeyOf(log.secretKey)}`,
   ...ws.map((k, i) => `WITNESS_${i + 1}_SECRET_KEY=${k.secretKey}`),
   `WITNESS_PUBLIC_KEYS='${JSON.stringify(Object.fromEntries(ws.map((k, i) => [`w${i + 1}`, k.publicKey])))}'`,
-  `MONITOR_TOKEN=${randomBytes(24).toString("hex")}`, "",
+  `MONITOR_TOKEN=${randomBytes(24).toString("hex")}`,
+  `ADMIN_TOKEN=${randomBytes(24).toString("hex")}`, // demo-only reset of witnesses and monitor "",
 ].join("\n"), { mode: 0o600 });
 console.log("wrote .env (log, vendor, 3 witness keys, monitor token)");

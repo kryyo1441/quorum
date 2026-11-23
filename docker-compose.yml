@@ -36,6 +36,7 @@ services:
       LOG_URL: http://log-server:4000
       LOG_PUBLIC_KEY: ${LOG_PUBLIC_KEY:?run `pnpm env:init` first}
       WITNESS_ID: w1
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       WITNESS_SECRET_KEY: ${WITNESS_1_SECRET_KEY:?run `pnpm env:init` first}
       PEERS: http://witness-2:4102,http://witness-3:4103
       PORT: 4101
@@ -59,6 +60,7 @@ services:
       LOG_PUBLIC_KEY: ${LOG_PUBLIC_KEY:?run `pnpm env:init` first}
       VENDOR_PUBLIC_KEYS: ${VENDOR_PUBLIC_KEYS:?run `pnpm env:init` first}
       MONITOR_TOKEN: ${MONITOR_TOKEN:?run `pnpm env:init` first}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
     ports: ["4300:4300"]
     depends_on: [log-server]
 
@@ -68,6 +70,10 @@ services:
     build: { context: ., args: { PKG: "@uw/demo" } }
     environment:
       PORT: 4200
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      # the demo server PLAYS THE ATTACKER (stolen vendor key, malicious log operator, database access) for attacks 4, 5 and 9
+      LOG_SECRET_KEY: ${LOG_SECRET_KEY:?run `pnpm env:init` first}
+      DATABASE_URL: "postgresql://uw:uw@postgres:5432/uw"
       UPDATE_URL: http://update-server:4001
       LOG_URL: http://log-server:4000
       MONITOR_URL: http://monitor:4300
