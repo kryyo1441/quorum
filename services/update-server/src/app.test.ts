@@ -13,3 +13,15 @@ test("targeted client gets a different binary, others the real one", async () =>
   expect(await get("?client=c1")).toBe("good");
   expect((await (await app.request("/latest/a/linux-x64")).json()).version).toBe("1.0.0");
 });
+
+test("a targeted client can be served a forged manifest; releases can be taken down; reset clears it", async () => {
+  const app = createApp();
+  await post(app, "/admin/release", { entry, binary: Buffer.from("good").toString("base64") });
+  await post(app, "/admin/target", { clientId: "c3", binary: Buffer.from("evil").toString("base64"), manifest: { ...entry, version: "9.9.9" } });
+  expect((await (await app.request("/latest/a/linux-x64?client=c3")).json()).version).toBe("9.9.9");
+  expect((await (await app.request("/latest/a/linux-x64?client=c1")).json()).version).toBe("1.0.0");
+  await post(app, "/admin/reset", {});
+  expect((await (await app.request("/latest/a/linux-x64?client=c3")).json()).version).toBe("1.0.0");
+  expect((await (await app.request("/admin/release/a/1.0.0/linux-x64", { method: "DELETE" })).json()).ok).toBe(true);
+  expect((await app.request("/latest/a/linux-x64")).status).toBe(404);
+});
