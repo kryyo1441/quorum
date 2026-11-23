@@ -139,7 +139,7 @@ export async function checkUpdate(binary: Uint8Array, manifest: ReleaseEntry, cf
   }
 
   // 5. no open alert from ANY witness; any unreachable witness fails closed (docs/spec-amendments.md)
-  const q = `app=${encodeURIComponent(manifest.app)}&version=${encodeURIComponent(manifest.version)}&platform=${encodeURIComponent(manifest.platform)}`;
+  const q = `app=${encodeURIComponent(manifest.app)}&version=${encodeURIComponent(manifest.version)}&platform=${encodeURIComponent(manifest.platform)}&sha256=${manifest.sha256}`; // sha256: only alerts about THIS binary block it (docs/spec-amendments.md)
   const results = await Promise.all(cfg.witnesses.map(async (w) => {
     try { const r = await get(d, `${w.url}/alerts?${q}`); return r.status === 200 && Array.isArray(r.body) ? { w, n: r.body.length, err: undefined } : { w, n: 0, err: `returned ${r.status}` }; }
     catch (e) { return { w, n: 0, err: errText(e) }; }
