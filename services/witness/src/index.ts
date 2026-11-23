@@ -11,13 +11,15 @@ if ((!env.LOG_PUBLIC_KEY || !env.WITNESS_SECRET_KEY) && !dev) throw new Error("L
 const net = { logUrl: env.LOG_URL ?? "http://localhost:4000", peers: (env.PEERS ?? "").split(",").filter(Boolean), fetch };
 const core = new WitnessCore(
   { id, secretKey: env.WITNESS_SECRET_KEY ?? devSecret(`witness-${id}`), logId: env.LOG_ID ?? "uw-dev-log", logPublicKey: env.LOG_PUBLIC_KEY ?? publicKeyOf(devSecret("log")), heartbeatMs: Number(env.HEARTBEAT_MS ?? 30_000) },
-  netDeps(net),
+  netDeps(net, () => core.head()),
 );
 // A restart must not make the witness trust the next head blindly again: with DATABASE_URL its state lives in its own Postgres schema.
 if (env.DATABASE_URL) {
   const st = await pgState(env.DATABASE_URL, id), snap = await st.load();
   if (snap) { core.restore(snap); console.log(`restored: head of ${snap.last?.treeSize ?? 0} leaves, ${snap.alerts.length} alerts`); }
-  core.onChange = () => void st.save(core.snapshot());
+  core.persist = (snap) => st.save(snap);                                    // awaited before every cosignature
+  let dirty = false, writing = false;                                          // everything else is coalesced: a burst of alerts is ONE write, not one per alert
+  core.onChange = () => { dirty = true; if (writing) return; writing = true; void (async () => { while (dirty) { dirty = false; await st.save(core.snapshot()).catch((e) => console.error("could not persist witness state:", e.message)); } writing = false; })(); };
 } else console.warn("DATABASE_URL not set: witness state is in memory, so a restart trusts the next head blindly");
 const r = runner(core, net);
 setInterval(() => void r.tick(), Number(env.POLL_MS ?? 2000)); // gossip rides the poll: ponytail: SPEC says every 10s, 2s is cheaper than a second timer
