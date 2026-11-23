@@ -4,5 +4,7 @@ import { defineConfig } from "vitest/config";
 const p = (r: string) => fileURLToPath(new URL(r, import.meta.url));
 export default defineConfig({ resolve: { alias: {
   "@uw/log-core": p("../packages/log-core/src/index.ts"),
+  "@uw/client-sdk": p("../packages/client-sdk/src/index.ts"),
+  "@uw/witness-core": p("../packages/witness-core/src/index.ts"),
   "@uw/shared": p("../packages/shared/src/index.ts"),
 } } });

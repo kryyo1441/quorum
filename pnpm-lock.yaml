@@ -66,12 +66,18 @@ importers:
 
   demo:
     dependencies:
+      '@uw/client-sdk':
+        specifier: workspace:*
+        version: link:../packages/client-sdk
       '@uw/log-core':
         specifier: workspace:*
         version: link:../packages/log-core
       '@uw/shared':
         specifier: workspace:*
         version: link:../packages/shared
+      '@uw/witness-core':
+        specifier: workspace:*
+        version: link:../packages/witness-core
     devDependencies:
       '@types/node':
         specifier: ^22
