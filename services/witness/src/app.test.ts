@@ -83,7 +83,8 @@ test("a log that lists fewer entries than the head it signed cannot make a confl
   await r.tick(false);
   await post(app, "/observations", obs(G, "c1")); await post(app, "/observations", obs(E, "c7"));
   const a = await (await app.request("/alerts?app=a&version=1.0.0&platform=win-x64&sha256=" + G)).json();
-  expect(a.map((x: any) => x.kind)).toContain("HASH_MISMATCH"); // listing rejected -> everything is treated as logged -> blocked
+  expect(a.length).toBeGreaterThan(0);                              // listing rejected -> the witness cannot vouch for what it was told -> blocked (fail closed)
+  expect(JSON.stringify(a)).toContain("failing closed");
 });
 test("public POST bodies are size-limited", async () => {
   const { app } = witness();
