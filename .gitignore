@@ -4,3 +4,4 @@ dist
 .next
 .env
 next-env.d.ts
+tsconfig.tsbuildinfo
