@@ -14,4 +14,4 @@ const m = new Monitor(
 );
 let busy = false;
 setInterval(async () => { if (busy) return; busy = true; try { for (const a of await m.poll()) console.warn(`ALERT ${a.kind} ${a.app} ${a.version} ${a.platform}`); } catch (e) { console.warn("poll failed:", e instanceof Error ? e.message : e); } finally { busy = false; } }, Number(env.POLL_MS ?? 2000));
-serve({ fetch: createApp(m, env.MONITOR_TOKEN ?? "dev-monitor-token").fetch, port: Number(env.PORT ?? 4300) });
+serve({ fetch: createApp(m, env.MONITOR_TOKEN ?? "dev-monitor-token", env.ADMIN_TOKEN ?? (dev ? "dev-admin-token" : undefined)).fetch, port: Number(env.PORT ?? 4300) });

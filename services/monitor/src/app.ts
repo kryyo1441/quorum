@@ -9,7 +9,7 @@ const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(
 
 /** The approved list is writable only with `token`, a credential SEPARATE from the vendor release key: an attacker who steals the
  *  release key and logs a malicious release (scenario 4) still cannot add it to the approved list. */
-export function createApp(m: Monitor, token: string) {
+export function createApp(m: Monitor, token: string, adminToken?: string) {
   const app = new Hono();
   app.use(cors());
   app.get("/health", (c) => c.json({ ok: true }));
@@ -20,6 +20,11 @@ export function createApp(m: Monitor, token: string) {
     if (!p.success) return c.json({ error: p.error.issues }, 400);
     m.approve(p.data);
     return c.json({ ok: true }, 201);
+  });
+  app.post("/admin/reset", (c) => { // demo reset only; disabled unless ADMIN_TOKEN is configured
+    if (!adminToken || c.req.header("authorization") !== `Bearer ${adminToken}`) return c.json({ error: "unauthorized" }, 401);
+    m.reset();
+    return c.json({ ok: true });
   });
   return app;
 }
