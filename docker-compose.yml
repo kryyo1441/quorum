@@ -1,5 +1,7 @@
+# One image for every service (identical build config, so docker builds it ONCE); each service picks its package with `command`.
 x-node: &node
-  build: { context: ., args: { PKG: "" } }
+  build: { context: . }
+  image: quorum-app
   restart: unless-stopped
 
 services:
@@ -12,7 +14,7 @@ services:
 
   log-server:
     <<: *node
-    build: { context: ., args: { PKG: "@uw/log-server" } }
+    command: pnpm --filter @uw/log-server start
     environment:
       PORT: 4000
       DATABASE_URL: "postgresql://uw:uw@postgres:5432/uw"
@@ -24,14 +26,14 @@ services:
 
   update-server:
     <<: *node
-    build: { context: ., args: { PKG: "@uw/update-server" } }
+    command: pnpm --filter @uw/update-server start
     environment: { PORT: 4001 }
     ports: ["4001:4001"]
 
   # Witness state is in memory (restart = trust on first use again); see docs/architecture.md.
   witness-1: &witness
     <<: *node
-    build: { context: ., args: { PKG: "@uw/witness" } }
+    command: pnpm --filter @uw/witness start
     environment: &wenv
       LOG_URL: http://log-server:4000
       LOG_PUBLIC_KEY: ${LOG_PUBLIC_KEY:?run `pnpm env:init` first}
@@ -54,7 +56,7 @@ services:
 
   monitor:
     <<: *node
-    build: { context: ., args: { PKG: "@uw/monitor" } }
+    command: pnpm --filter @uw/monitor start
     environment:
       PORT: 4300
       LOG_URL: http://log-server:4000
@@ -68,7 +70,7 @@ services:
   # Drives the stack for the dashboard (fleet, attack 1) and runs the hermetic adversarial suite. Holds the vendor key like a release machine.
   demo:
     <<: *node
-    build: { context: ., args: { PKG: "@uw/demo" } }
+    command: pnpm --filter @uw/demo start
     environment: &demoenv
       PORT: 4200
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
@@ -92,7 +94,6 @@ services:
   # so the dashboard has something to show right after `docker compose up`.
   seed:
     <<: *node
-    build: { context: ., args: { PKG: "@uw/demo" } }
     restart: "no"
     command: pnpm --filter @uw/demo seed
     environment: *demoenv
@@ -100,7 +101,7 @@ services:
 
   web:
     <<: *node
-    build: { context: ., args: { PKG: "@uw/web" } }
+    command: pnpm --filter @uw/web start
     # demo only: the publish dialog signs server-side, so web holds the vendor secret. A real vendor keeps it offline.
     environment:
       VENDOR_KEY_ID: ${VENDOR_KEY_ID:?run `pnpm env:init` first}
