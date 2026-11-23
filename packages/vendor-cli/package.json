@@ -1,0 +1,8 @@
+{
+  "name": "@uw/vendor-cli", "version": "0.0.0", "type": "module",
+  "main": "dist/index.js", "types": "dist/index.d.ts",
+  "bin": { "uw": "dist/cli.js" },
+  "scripts": { "build": "tsc -p .", "test": "vitest run", "uw": "tsx src/cli.ts" },
+  "dependencies": { "@uw/log-core": "workspace:*", "@uw/shared": "workspace:*" },
+  "devDependencies": { "@types/node": "^22", "tsx": "^4", "typescript": "^5", "vitest": "^3" }
+}
