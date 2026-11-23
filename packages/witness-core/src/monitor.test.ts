@@ -37,3 +37,11 @@ test("a log that rewrites history between polls is reported", async () => {
   st.entries = [rel("1.0.0", "d".repeat(64)), st.entries[1], rel("1.0.2", "e".repeat(64))];
   expect((await m.poll()).map((x) => x.kind)).toContain("INCONSISTENT_STH");
 });
+test("a stored leaf rewritten WITH its hash fixed is still reported (first-seen hash differs)", async () => {
+  const a = rel("1.0.0", "a".repeat(64)), { m, st } = mk([a]);
+  m.approve({ app: "a", version: "1.0.0", platform: "win-x64", sha256: "a".repeat(64) });
+  await m.poll();
+  st.entries = [rel("1.0.0", "d".repeat(64))];
+  const r = await m.poll();
+  expect(r.some((x) => x.kind === "INCONSISTENT_STH" && (x.evidence as { idx?: number }).idx === 0)).toBe(true);
+});
