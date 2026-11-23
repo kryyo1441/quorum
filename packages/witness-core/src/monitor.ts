@@ -1,5 +1,5 @@
 // Vendor monitor, SPEC §9. Tails the log and raises UNAPPROVED_RELEASE for any entry that is not on the approved list.
-import { leafHashOfEntry, verifyConsistency, verifyEntry, verifyLogSig } from "@uw/log-core";
+import { leafHashOfEntry, rootHash, verifyConsistency, verifyEntry, verifyLogSig } from "@uw/log-core";
 import type { ReleaseEntry, SplitViewAlert, STH } from "@uw/shared";
 
 export type Approved = { app: string; version: string; platform: string; sha256: string };
@@ -46,7 +46,14 @@ export class Monitor {
     } else if (this.lastHead) add("INCONSISTENT_STH", { app: "*", version: "*", platform: "*" }, { headA: this.lastHead, headB: head, note: "tree shrank" }, `shrink:${head.treeSize}`);
     if (!this.lastHead || head.treeSize >= this.lastHead.treeSize) this.lastHead = head;
 
-    for (const l of (await this.d.entries()).slice(0, head.treeSize)) {
+    // The listing is only believed if it IS the tree the log signed: all head.treeSize entries, and their recomputed root equals the head's root.
+    // Otherwise a log could sign a head containing a malicious release and simply leave it out of what it lists.
+    const listing = (await this.d.entries()).slice(0, head.treeSize);
+    if (listing.length < head.treeSize || rootHash(listing.map((l) => leafHashOfEntry(l.entry))) !== head.rootHash) {
+      add("INCONSISTENT_STH", { app: "*", version: "*", platform: "*" }, { head, listed: listing.length, note: "the log's entry listing does not match the head it signed" }, `listing:${head.rootHash}`);
+      return out;
+    }
+    for (const l of listing) {
       const e = l.entry, leafHash = leafHashOfEntry(e);
       if (leafHash !== l.leafHash) { add("NOT_IN_LOG", e, { idx: l.idx, claimed: l.leafHash, recomputed: leafHash }, `tamper:${l.idx}`); continue; }
       const was = this.leafSeen.get(l.idx);

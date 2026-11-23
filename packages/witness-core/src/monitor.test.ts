@@ -52,3 +52,13 @@ test("approving a release later withdraws its alert", async () => {
   m.approve({ app: "a", version: "1.0.0", platform: "win-x64", sha256: "a".repeat(64) });
   expect(m.alerts).toHaveLength(0);
 });
+
+test("a log that signs a head containing a malicious release but lists only the approved prefix is caught", async () => {
+  const good = rel("1.0.0", "a".repeat(64)), { m, st } = mk([good, rel("1.0.1", "b".repeat(64))]);
+  m.approve({ app: "a", version: "1.0.0", platform: "win-x64", sha256: "a".repeat(64) });
+  const real = st.entries.slice();
+  const dep = (m as unknown as { d: { entries: () => Promise<unknown> } }).d;
+  dep.entries = async () => real.slice(0, 1).map((entry, idx) => ({ idx, entry, leafHash: leafHashOfEntry(entry) })); // hides entry 1
+  const r = await m.poll();
+  expect(r.some((x) => x.kind === "INCONSISTENT_STH" && JSON.stringify(x.evidence).includes("does not match"))).toBe(true);
+});
