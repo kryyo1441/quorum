@@ -70,7 +70,7 @@ export const SCENARIOS: { n: number; name: string; attack: string; expected: str
       return { actual: `${client.state === "verified" ? "ACCEPTED" : client.reason}; monitor: ${alerts.length ? "UNAPPROVED_RELEASE" : "no alert"}`, pass, alertMs,
         evidence: ["detected, NOT prevented: a client that installs before the monitor polls is exposed for one poll window", `client verdict: ${client.state}`, `monitor alerts: ${alerts.map((a) => `${a.kind} ${a.version}`).join(", ") || "none"}`, `attacker approving its own release without the monitor token: HTTP ${tryApprove.status}`] };
     } },
-  { n: 5, name: "Split view (forked log)", attack: "Log operator shows client c3 a forked tree containing a release the public log never has", expected: "INCONSISTENT_STH raised; client blocked INSUFFICIENT_COSIGS",
+  { n: 5, name: "Split view (forked log)", attack: "Log operator shows client c3 a forked tree containing a release the public log never has", expected: "Victim blocked INSUFFICIENT_COSIGS; witnesses raise INCONSISTENT_STH",
     run: async (w) => {
       await publish(w.env);
       const before = await runClient(w.env, "c1");           // before the fork is shown to witnesses everything is fine
@@ -78,17 +78,15 @@ export const SCENARIOS: { n: number; name: string; attack: string; expected: str
       const evilEntry = makeEntry(w.env, EVIL);              // attacker holds BOTH the log key and the vendor key
       await post(w, `${fork.url}/entries`, evilEntry);
       const head = (await (await w.fetch(`${fork.url}/sth`)).json()) as STH;
-      const t0 = performance.now();
-      const asks = await Promise.all(w.witnesses.map(async (x) => ((await (await post(w, `${x.url}/gossip`, head)).json()) as { status: string }).status)); // the operator asks every witness to cosign the fork
-      const alertMs = performance.now() - t0;
+      const t0 = performance.now(); // the operator NEVER shows the fork to a witness; the victim client's own check forwards the head it was shown
       const { verdict, checks } = await verdictFor(w, EVIL, evilEntry, { logUrl: fork.url });
-      const alerts = await kinds(w);
+      const alertMs = performance.now() - t0, alerts = await kinds(w);
       const after = await runClient(w.env, "c1");
       // Two log-signed heads for one size prove the log equivocated, so EVERY client fails closed (SPLIT_VIEW) until the operator is dealt with.
-      const pass = asks.every((s) => s === "inconsistent") && !verdict.ok && verdict.reason === "INSUFFICIENT_COSIGS" && alerts.every((a) => a.includes("INCONSISTENT_STH")) && before.state === "verified" && after.reason === "SPLIT_VIEW";
-      return { actual: `witnesses: ${[...new Set(asks)].join(",")}; client: ${reasonOf(verdict)}`, pass, alertMs,
+      const pass = !verdict.ok && verdict.reason === "INSUFFICIENT_COSIGS" && alerts.every((a) => a.includes("INCONSISTENT_STH")) && before.state === "verified" && after.reason === "SPLIT_VIEW";
+      return { actual: `client: ${reasonOf(verdict)}; witnesses: ${[...new Set(alerts.flat())].join(",")}`, pass, alertMs,
         evidence: [`fork head has ${head.cosigs.length} cosigs; copying the real head's cosigs does not work (they bind the root)`, `inclusion + log signature on the fork pass: ${checks.filter((c) => ["inclusion", "logSig"].includes(c.id)).map((c) => c.status).join("/")}`, `client c3: ${why(verdict)}`, `witness alerts: ${alerts.map((a) => a.join("+")).join(" | ")}`, `honest client c1 before the fork was shown to witnesses: ${before.state}; after: ${after.state} ${after.reason ?? ""} (a proven fork blocks everyone: the log can no longer be trusted)`,
-          "limit: a witness only learns of a fork when the fork head reaches it (poll, gossip, or the operator asking for a cosig)"] };
+          "the victim's verification forwarded the forked head it was shown to every witness: one client's view became evidence for all"] };
     } },
   { n: 6, name: "Downgrade / replay", attack: "Old, validly signed and logged release replayed to a client that is already newer", expected: "STALE_STH (version-monotonic check)",
     run: async (w) => {
