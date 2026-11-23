@@ -8,20 +8,22 @@ const get = (c: RunnerCfg, u: string, init?: RequestInit) => c.fetch(u, { ...ini
 
 /** What the core needs from the network: consistency proofs and the log's hashes for a release. */
 export function netDeps(c: RunnerCfg, verifiedHead: () => { treeSize: number; rootHash: string } | undefined): WitnessDeps {
-  let cache: { at: number; entries: any[] } | undefined;
+  // The listing authenticated against a head is IMMUTABLE (the root commits to every entry), so it is cached per head root and never refetched or rehashed while the head is the same.
+  let authed: { root: string; entries: { entry: { app: string; version: string; platform: string; sha256: string } }[] } | undefined;
   return {
     now: c.now ?? (() => new Date()),
     consistency: async (from, to) => (await j(await get(c, `${c.logUrl}/consistency?from=${from}&to=${to}`))).path,
-    // ponytail: whole-log fetch cached 1s; a real deployment queries by release.
     // The listing is AUTHENTICATED against the head this witness verified and cosigned: all treeSize entries, and their recomputed root must equal the head's root.
     // A log cannot hide a logged release (or invent one) in what it lists without breaking that, so a bad listing throws and callers fail closed.
     logHashes: async (app, version, platform) => {
       const head = verifiedHead();
       if (!head) throw new Error("no verified head yet: cannot authenticate the log's listing");
-      if (!cache || Date.now() - cache.at > 1000) cache = { at: Date.now(), entries: await j(await get(c, `${c.logUrl}/entries`)) };
-      const listing = cache.entries.slice(0, head.treeSize);
-      if (listing.length < head.treeSize || rootHash(listing.map((l) => leafHashOfEntry(l.entry))) !== head.rootHash) throw new Error("the log's entry listing does not match the head it signed");
-      return listing.filter((l) => l.entry.app === app && l.entry.version === version && l.entry.platform === platform).map((l) => l.entry.sha256);
+      if (authed?.root !== head.rootHash) {
+        const entries: any[] = await j(await get(c, `${c.logUrl}/entries`)), listing = entries.slice(0, head.treeSize);
+        if (listing.length < head.treeSize || rootHash(listing.map((l) => leafHashOfEntry(l.entry))) !== head.rootHash) throw new Error("the log's entry listing does not match the head it signed");
+        authed = { root: head.rootHash, entries: listing };
+      }
+      return authed.entries.filter((l) => l.entry.app === app && l.entry.version === version && l.entry.platform === platform).map((l) => l.entry.sha256);
     },
   };
 }
