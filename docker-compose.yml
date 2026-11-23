@@ -18,6 +18,7 @@ services:
       DATABASE_URL: "postgresql://uw:uw@postgres:5432/uw"
       LOG_SECRET_KEY: ${LOG_SECRET_KEY:?run `pnpm env:init` first}
       VENDOR_PUBLIC_KEYS: ${VENDOR_PUBLIC_KEYS:?run `pnpm env:init` first}
+      WITNESS_PUBLIC_KEYS: ${WITNESS_PUBLIC_KEYS:?run `pnpm env:init` first}
     ports: ["4000:4000"]
     depends_on: { postgres: { condition: service_healthy } }
 
@@ -27,20 +28,58 @@ services:
     environment: { PORT: 4001 }
     ports: ["4001:4001"]
 
-  # ponytail: witnesses are in-memory (stub core); per-witness Postgres schema arrives with witness-core.
+  # Witness state is in memory (restart = trust on first use again); see docs/architecture.md.
   witness-1: &witness
     <<: *node
     build: { context: ., args: { PKG: "@uw/witness" } }
-    environment: { WITNESS_ID: w1, PORT: 4101 }
+    environment: &wenv
+      LOG_URL: http://log-server:4000
+      LOG_PUBLIC_KEY: ${LOG_PUBLIC_KEY:?run `pnpm env:init` first}
+      WITNESS_ID: w1
+      WITNESS_SECRET_KEY: ${WITNESS_1_SECRET_KEY:?run `pnpm env:init` first}
+      PEERS: http://witness-2:4102,http://witness-3:4103
+      PORT: 4101
     ports: ["4101:4101"]
+    depends_on: [log-server]
   witness-2:
     <<: *witness
-    environment: { WITNESS_ID: w2, PORT: 4102 }
+    environment: { <<: *wenv, WITNESS_ID: w2, WITNESS_SECRET_KEY: "${WITNESS_2_SECRET_KEY:?run `pnpm env:init` first}", PEERS: "http://witness-1:4101,http://witness-3:4103", PORT: 4102 }
     ports: ["4102:4102"]
   witness-3:
     <<: *witness
-    environment: { WITNESS_ID: w3, PORT: 4103 }
+    environment: { <<: *wenv, WITNESS_ID: w3, WITNESS_SECRET_KEY: "${WITNESS_3_SECRET_KEY:?run `pnpm env:init` first}", PEERS: "http://witness-1:4101,http://witness-2:4102", PORT: 4103 }
     ports: ["4103:4103"]
+
+  monitor:
+    <<: *node
+    build: { context: ., args: { PKG: "@uw/monitor" } }
+    environment:
+      PORT: 4300
+      LOG_URL: http://log-server:4000
+      LOG_PUBLIC_KEY: ${LOG_PUBLIC_KEY:?run `pnpm env:init` first}
+      VENDOR_PUBLIC_KEYS: ${VENDOR_PUBLIC_KEYS:?run `pnpm env:init` first}
+      MONITOR_TOKEN: ${MONITOR_TOKEN:?run `pnpm env:init` first}
+    ports: ["4300:4300"]
+    depends_on: [log-server]
+
+  # Drives the stack for the dashboard (fleet, attack 1) and runs the hermetic adversarial suite. Holds the vendor key like a release machine.
+  demo:
+    <<: *node
+    build: { context: ., args: { PKG: "@uw/demo" } }
+    environment:
+      PORT: 4200
+      UPDATE_URL: http://update-server:4001
+      LOG_URL: http://log-server:4000
+      MONITOR_URL: http://monitor:4300
+      MONITOR_TOKEN: ${MONITOR_TOKEN:?run `pnpm env:init` first}
+      WITNESS_URLS: http://witness-1:4101,http://witness-2:4102,http://witness-3:4103
+      LOG_PUBLIC_KEY: ${LOG_PUBLIC_KEY:?run `pnpm env:init` first}
+      WITNESS_PUBLIC_KEYS: ${WITNESS_PUBLIC_KEYS:?run `pnpm env:init` first}
+      VENDOR_KEY_ID: ${VENDOR_KEY_ID:?run `pnpm env:init` first}
+      VENDOR_SECRET_KEY: ${VENDOR_SECRET_KEY:?run `pnpm env:init` first}
+      VENDOR_PUBLIC_KEYS: ${VENDOR_PUBLIC_KEYS:?run `pnpm env:init` first}
+    ports: ["4200:4200"]
+    depends_on: [log-server, update-server, witness-1, witness-2, witness-3, monitor]
 
   web:
     <<: *node
@@ -51,7 +90,16 @@ services:
       VENDOR_SECRET_KEY: ${VENDOR_SECRET_KEY:?run `pnpm env:init` first}
       LOG_URL: http://log-server:4000
       WITNESS_URLS: http://witness-1:4101,http://witness-2:4102,http://witness-3:4103
+      MONITOR_URL: http://monitor:4300
+      MONITOR_TOKEN: ${MONITOR_TOKEN:?run `pnpm env:init` first}
+      DEMO_URL: http://demo:4200
+      # what the BROWSER reaches (the /verify page runs the checks client-side) and the keys it pins
+      PUBLIC_LOG_URL: http://localhost:4000
+      PUBLIC_WITNESS_URLS: http://localhost:4101,http://localhost:4102,http://localhost:4103
+      LOG_PUBLIC_KEY: ${LOG_PUBLIC_KEY:?run `pnpm env:init` first}
+      WITNESS_PUBLIC_KEYS: ${WITNESS_PUBLIC_KEYS:?run `pnpm env:init` first}
+      VENDOR_PUBLIC_KEYS: ${VENDOR_PUBLIC_KEYS:?run `pnpm env:init` first}
     ports: ["3000:3000"]
-    depends_on: [log-server]
+    depends_on: [log-server, demo]
 
 volumes: { pg: {} }
