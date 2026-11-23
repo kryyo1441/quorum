@@ -9,7 +9,8 @@
     "attack1": "tsx src/cli.ts attack1",
     "reset": "tsx src/cli.ts reset",
     "test": "vitest run",
-    "start": "tsx src/server.ts"
+    "start": "tsx src/server.ts",
+    "smoke": "tsx src/smoke.ts"
   },
   "dependencies": {
     "@uw/log-core": "workspace:*",
