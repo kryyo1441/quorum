@@ -95,7 +95,7 @@ A one-shot `seed` container publishes `notepad-minus 2.1.0` and waits until two 
 | **Attack** | All ten scenarios, plus latency and overhead |
 | **Verify** | Public verifier running every check in your browser |
 
-`docker compose down -v` gives a pristine stack. A 3-minute script is in [`submission/DEMO.md`](submission/DEMO.md); pitch text in [`submission/PITCH.md`](submission/PITCH.md).
+`docker compose down -v` gives a pristine stack. To present it: [`submission/deck/index.html`](submission/deck/index.html) is a self-contained slide deck (open it in a browser; arrow keys to move, **N** for speaker notes, **F** for fullscreen), [`submission/SCRIPT.md`](submission/SCRIPT.md) is the spoken script, and [`submission/RUNBOOK.md`](submission/RUNBOOK.md) walks through the live demo step by step and explains what each step does underneath. Pitch text and sources are in [`submission/PITCH.md`](submission/PITCH.md).
 
 Without Docker (public dev keys, in-memory log, **demos only**), tests, and the smoke test:
 
