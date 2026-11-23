@@ -96,3 +96,17 @@ test("reset forgets alerts and observations but keeps head history (a fork is st
   expect(await w.alerts({})).toHaveLength(0);
   expect((await w.onHead(head(fork, 2000))).status).toBe("inconsistent");
 });
+
+test("a restart keeps the last head, the fork evidence and the observations (snapshot round trip)", async () => {
+  const real = leaves(4), fork = leaves(4, "evil");
+  const { w } = mk(real, { t: 5000 }, ["good"]);
+  await w.onHead(head(real)); await w.observe(obs("good")); await w.onHead(head(fork, 2000));
+  const snap = JSON.parse(JSON.stringify(w.snapshot())); // through JSON, as the database would store it
+  const { w: w2 } = mk(real, { t: 9000 }, ["good"]);
+  w2.restore(snap);
+  expect(await w2.alerts({})).toHaveLength(1);
+  expect((await w2.onHead(head(fork, 2000))).status).toBe("inconsistent");   // still a fork after a restart, and not a second alert
+  expect(await w2.alerts({})).toHaveLength(1);
+  expect((await w2.onHead(head(real.slice(0, 2)))).status).toBe("behind");   // does not forget it already cosigned size 4
+  expect((await w2.onHead(head(real))).status).toBe("cosigned");             // re-issues its cosig for the same head
+});
