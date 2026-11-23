@@ -1,20 +1,23 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #08090b;
-  --color-panel: #101216;
-  --color-line: #1d2127;
-  --color-ink: #e8eaed;
-  --color-mute: #7b8490;
-  --color-ok: #34e39a;      /* verified */
-  --color-bad: #ff5c6c;     /* blocked */
+  --color-bg: #0a0910;
+  --color-panel: #121019;
+  --color-line: #242030;
+  --color-ink: #ede9f6;
+  --color-mute: #8d879c;
+  --color-accent: #b9a2f2;  /* brand lavender */
+  --color-ok: #8fdcb8;      /* verified: soft sage, kept distinct from the brand purple so pass/fail stays readable */
+  --color-bad: #f08a9a;     /* blocked */
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-head), ui-serif, Georgia, serif;
   --font-mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
   --animate-rise: rise .7s cubic-bezier(.2,.7,.2,1) both;
   --animate-pulse-ring: ring 2s ease-out infinite;
   --animate-shimmer: shimmer 2.4s linear infinite;
 }
 @keyframes rise { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: none; } }
-@keyframes ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-ok) 60%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
+@keyframes ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 60%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
 @keyframes shimmer { to { background-position: -200% 0; } }
 @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 @keyframes pop { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
@@ -22,8 +25,11 @@
 
 html { background: var(--color-bg); color: var(--color-ink); color-scheme: dark; }
 body { min-height: 100dvh; background:
-  radial-gradient(60rem 30rem at 85% -10%, color-mix(in srgb, var(--color-ok) 7%, transparent), transparent),
+  radial-gradient(60rem 32rem at 85% -12%, color-mix(in srgb, #8f74e6 16%, transparent), transparent),
+  radial-gradient(40rem 24rem at -5% 0%, color-mix(in srgb, #d9c7ff 7%, transparent), transparent),
   var(--color-bg); }
-::selection { background: color-mix(in srgb, var(--color-ok) 35%, transparent); }
+::selection { background: color-mix(in srgb, var(--color-accent) 40%, transparent); }
+h1, h2, h3 { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.015em; }
+@utility bg-accent { background-image: linear-gradient(135deg, #e0d2ff, #a68df0); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 @keyframes shake { 20%,60% { transform: translateX(-6px); } 40%,80% { transform: translateX(6px); } }
