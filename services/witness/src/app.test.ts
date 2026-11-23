@@ -60,3 +60,15 @@ test("observations: c7's tampered hash is flagged; clients with the logged hash 
   expect(await (await app.request("/alerts?app=a&version=1.0.0&platform=win-x64&sha256=good")).json()).toEqual([]);
   expect((await post(app, "/observations", { nope: 1 })).status).toBe(400);
 });
+
+test("admin reset needs the token and is off without one", async () => {
+  const { core, r } = witness();
+  const on = createApp("w1", core, r.onHead, "tok"), off = createApp("w1", core, r.onHead);
+  const go = (a: typeof on, auth?: string) => a.request("/admin/reset", { method: "POST", headers: auth ? { authorization: auth } : {} });
+  expect((await go(on)).status).toBe(401);
+  expect((await go(on, "Bearer nope")).status).toBe(401);
+  expect((await go(off, "Bearer tok")).status).toBe(401);
+  await post(on, "/observations", obs("evil", "c7")); await post(on, "/observations", obs("good", "c1"));
+  expect((await go(on, "Bearer tok")).status).toBe(200);
+  expect(await (await on.request("/alerts?app=a")).json()).toEqual([]);
+});
