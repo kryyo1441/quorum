@@ -10,6 +10,7 @@ export type Env = {
   vendor: { keyId: string; secretKey: string };
   verify: Omit<VerifyConfig, "expected">;             // what every client trusts: log key, witness keys, vendor keys, k
   fetch: Fetch; now?: () => number;
+  settle?: () => Promise<void>;                       // in-process worlds: let witnesses/monitor run a cycle (a live stack does this on its own timers)
 };
 export type ClientResult = {
   id: string; state: "verified" | "blocked"; reason?: FailReason; detail?: string; sha256: string;
@@ -58,12 +59,14 @@ export async function waitCosigned(e: Env, size: number, ms = 15000) {
     const h = (await (await e.fetch(`${e.logUrl}/sth/${size}`)).json()) as { cosigs?: unknown[] };
     if ((h.cosigs?.length ?? 0) >= e.verify.threshold) return;
     if (Date.now() > end) throw new Error(`head ${size} not cosigned by ${e.verify.threshold} witnesses within ${ms} ms`);
-    await wait(100);
+    if (e.settle) await e.settle(); else await wait(100);
   }
 }
 
-export const attack1 = (e: Env, clientId: string) =>
-  e.fetch(`${e.updateUrl}/admin/target`, { method: "POST", body: JSON.stringify({ clientId, binary: Buffer.from(EVIL).toString("base64") }) });
+/** Compromised update server: serve `clientId` a different binary under the same manifest (attack 1). */
+export const attackWith = (e: Env, clientId: string, binary: Uint8Array) =>
+  e.fetch(`${e.updateUrl}/admin/target`, { method: "POST", body: JSON.stringify({ clientId, binary: Buffer.from(binary).toString("base64") }) });
+export const attack1 = (e: Env, clientId: string) => attackWith(e, clientId, EVIL);
 export const reset = (e: Env) => e.fetch(`${e.updateUrl}/admin/reset`, { method: "POST" });
 
 /** One installed client: fetch manifest + binary from the update server, run ALL of §7.2 (verifyUpdate's checks), report what it saw to every witness. */
