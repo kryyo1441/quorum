@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { Observation, STH } from "@uw/shared";
 import type { HeadResult, WitnessCore } from "@uw/witness-core";
@@ -6,6 +7,7 @@ import type { HeadResult, WitnessCore } from "@uw/witness-core";
 /** `onHead` is the one path every head takes (log poll or gossip): core check, then (if it cosigned) submit the cosig to the log. */
 export function createApp(id: string, core: WitnessCore, onHead: (h: STH) => Promise<HeadResult>, adminToken?: string) {
   const app = new Hono();
+  app.use(bodyLimit({ maxSize: 64 * 1024, onError: (c) => c.json({ error: "body too large" }, 413) })); // public POSTs: observations and gossip are tiny
   app.use(cors()); // /verify runs the client checks in the browser and reads /alerts
   app.get("/health", (c) => c.json({ id, ok: true }));
   app.get("/sth", (c) => { const h = core.head(); return h ? c.json(h) : c.json({ error: "no cosigned head yet" }, 404); });
