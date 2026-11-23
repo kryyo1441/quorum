@@ -86,3 +86,13 @@ test("log unreachable: no NOT_IN_LOG guess, and HASH_MISMATCH fails closed", asy
   expect((await w.observe(obs("h2"))).map((a) => a.kind)).toEqual(["HASH_MISMATCH"]);
   expect(await w.alerts({ app: "a", version: "1.0.0", platform: "win-x64", sha256: "h1" })).toHaveLength(1);
 });
+
+test("reset forgets alerts and observations but keeps head history (a fork is still caught)", async () => {
+  const real = leaves(4), fork = leaves(4, "evil"), { w } = mk(real, { t: 5000 }, ["good"]);
+  await w.onHead(head(real)); await w.observe(obs("good")); await w.observe(obs("evil"));
+  await w.onHead(head(fork, 2000));
+  expect(await w.alerts({})).not.toHaveLength(0);
+  w.reset();
+  expect(await w.alerts({})).toHaveLength(0);
+  expect((await w.onHead(head(fork, 2000))).status).toBe("inconsistent");
+});
