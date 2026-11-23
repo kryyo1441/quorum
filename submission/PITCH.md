@@ -51,13 +51,27 @@ Numbers (README, in-process): about 98 ms median verification, about 850 bytes o
 - No key rotation or revocation yet.
 - Pseudonymous observations reduce but do not remove telemetry privacy concerns.
 
-## 6. Business
+## 6. Business (slides 14 to 16 in the deck)
 
-- **Who pays:** desktop software vendors and agent / MCP tool vendors (a "verifiable updates" badge for customers and auditors); enterprises monitoring update integrity across a fleet.
-- **Pricing (proposed, untested):** per app per month for vendors (SDK + hosted log + witness network); per endpoint for fleet monitoring; self-hosted licence for regulated customers.
-- **Moat:** the witness network. More independent witnesses and more verifying clients make a split view harder to hide.
-- **Expansion:** agent runtimes and MCP servers, which combine privileged local access with vendor-controlled auto-update (the CSA research note on cPGuard makes this argument).
-- No market-size numbers. We cite incidents instead.
+**Why now (all sourced; "supports", never "guarantees compliance"):**
+- **EU Cyber Resilience Act:** reporting duties for actively exploited vulnerabilities and severe incidents live since **11 Sep 2026**; main obligations, including security updates for the support period, apply from **11 Dec 2027**; maximum fines **up to EUR 15M or 2.5% of worldwide turnover** (law-firm summaries; check Regulation Arts. 14 and 71 before quoting).
+- **Incidents:** four hijacked update channels in 18 months (section 1).
+- **Buyers exist for adjacent products:** Chainguard reportedly grew ARR to about **$40M** (FY2025) selling software supply-chain trust, and raised $356M at a $3.5B valuation (Apr 2025). A different product, the same budget line; we do not claim to be them.
+
+**How we make money (open protocol, paid operations):**
+1. **Vendors, SaaS:** hosted log + managed witness quorum + SDK, `uw publish`, vendor monitor and alerting, audit export. Per app per month.
+2. **Enterprises, fleet monitoring:** alerts when any endpoint was offered a different file than the rest, plus an evidence trail. Per endpoint per month.
+3. **Regulated, self-hosted:** private log and witness federation with support and SLAs. Annual licence.
+Prices are **hypotheses to validate with design partners**, not facts.
+
+**Illustrative arithmetic (not a forecast):** at one price point of $499 per app per month: 50 apps is about $0.3M a year, 200 apps about $1.2M, 1,000 apps about $6.0M. Infrastructure is small (about 500 log appends per second measured in-process on one machine), so gross margin should be high: a hypothesis.
+
+**Moat:** the witness network. More independent witnesses and more verifying clients make a split view harder to hide.
+**Expansion:** AI agent runtimes and MCP servers (privileged local access plus vendor-controlled auto-update; the CSA note on cPGuard makes this argument).
+
+**What we must still prove (say it out loud):** (1) vendors integrate the SDK; (2) independent witnesses join (today all three are ours); (3) someone pays. **No customers or revenue yet.**
+
+**Risks to be ready for:** an open protocol can be self-hosted and commoditised (the answer is operations, SLAs, the independent witness network and evidence export, as with Let's Encrypt vs paid certificate vendors); cold-start for the network; long enterprise sales cycles; vendors may see an update log as exposure. No market-size numbers are claimed.
 
 ## 7. Prior art (say it, do not claim to be first)
 
@@ -73,3 +87,5 @@ Pilot with one vendor; recruit independent witnesses (a university, a CERT, anot
 - eScan: Help Net Security 29 Jan 2026; SecurityWeek; The Register (eScan disputes Morphisec's account).
 - AOMEI: Help Net Security 20 Oct 2026; Malwarebytes Oct 2026; AOMEI advisory dated 19 Oct 2026. Start date differs between sources (April or May); the slide says "May to July".
 - cPGuard: CSA research note, 7 Nov 2026 (the note says it was AI-assisted and not officially reviewed; counts are preliminary); eSecurity Planet.
+
+- Money slide sources: European Commission and ENISA Cyber Resilience Act pages; Skadden, Goodwin and Travers Smith summaries (fines, dates); SecurityWeek, SiliconANGLE and GeekWire (Chainguard funding and ARR, reported).
