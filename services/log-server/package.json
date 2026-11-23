@@ -1,5 +1,8 @@
 {
-  "name": "@uw/log-server", "version": "0.0.0", "type": "module", "private": true,
+  "name": "@uw/log-server",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "prisma migrate deploy && tsx src/index.ts",
@@ -7,6 +10,20 @@
     "db:migrate": "prisma migrate dev",
     "test": "vitest run"
   },
-  "dependencies": { "hono": "^4", "@hono/node-server": "^1", "@prisma/client": "^6", "@uw/log-core": "workspace:*", "@uw/shared": "workspace:*" },
-  "devDependencies": { "prisma": "^6", "tsx": "^4", "vitest": "^3", "typescript": "^5", "@types/node": "^22" }
+  "dependencies": {
+    "hono": "^4",
+    "@hono/node-server": "^1",
+    "@prisma/client": "^6",
+    "@uw/log-core": "workspace:*",
+    "@uw/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "prisma": "^6",
+    "tsx": "^4",
+    "vitest": "^3",
+    "typescript": "^5",
+    "@types/node": "^22",
+    "pg": "^8",
+    "@types/pg": "^8"
+  }
 }
