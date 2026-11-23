@@ -4,7 +4,7 @@ A spoken script for the 3-minute pitch with a live demo. It follows the slides i
 
 **How to read this:** plain text is what you say. *Italics in brackets* are stage directions. `[DEMO]` marks the live parts: the exact clicks are in `RUNBOOK.md`. Read it aloud once; where a sentence feels stiff, say it your way. The beats matter more than the words.
 
-Timing: about 3:15 spoken, plus the demo. Cut guide at the bottom.
+Timing: about 4 minutes spoken, plus the demo. Cut guide at the bottom.
 
 ---
 
@@ -88,12 +88,24 @@ Timing: about 3:15 spoken, plus the demo. Cut guide at the bottom.
 
 *[Say "in-process" out loud when you give the milliseconds.]*
 
-## 3:00 · Honest limits, then the ask *(slides 13 to 16)*
+## 3:00 · Honest limits *(slide 13)*
 
 > We'd rather you hear the limits from us. The monitor *detects* a stolen-key release, it doesn't prevent it. If enough witnesses *and* the log collude, it fails, and today all three of our witnesses are run by us. And there's no key rotation yet.
+
+## 3:15 · The money *(slides 14 to 16)*
+
+> **So who pays, and why now?**
 >
-> So: **who pays?** Software vendors, and especially AI-agent and MCP-tool vendors, whose tools combine privileged access with auto-update. They pay for a "verifiable updates" badge their customers and auditors can check. The moat is the witness network: more independent witnesses and more verifying clients make a split view harder to hide.
+> Three things are landing at once. **Regulation:** the EU Cyber Resilience Act's reporting duties went live in September, and the main obligations, including secure updates, apply from December 2027, with fines up to fifteen million euros or two and a half percent of turnover. A public log of every release is evidence that *supports* that: we won't say it makes you compliant. **Incidents:** four in eighteen months, so customers and auditors are starting to ask vendors how they know their update is genuine. **And the market already pays** for supply-chain trust: Chainguard reportedly reached about forty million dollars of recurring revenue. Different product, same budget line.
 >
+> **How we make money:** the protocol has to be open, because that's how Certificate Transparency earned trust. We charge for *running it well.* Vendors pay per app, per month, for a hosted log, a managed quorum of witnesses, the monitor and the SDK. Enterprises pay per endpoint to be told when any of their machines was offered a different file. Regulated customers pay for a self-hosted licence.
+>
+> **The honest shape of it:** infrastructure is cheap, we measured about five hundred appends a second on a laptop, so margins should be high. And simple arithmetic: at about five hundred dollars per app per month, two hundred apps is roughly one point two million a year. *That's illustrative, not a forecast.* What we still have to prove is three things: vendors integrate the SDK, independent witnesses join, and someone actually pays. We have no customers yet. That's the next step: design partners.
+
+*[Say "illustrative" and "no customers yet" out loud. Judges trust that more than a big number.]*
+
+## 3:50 · The ask *(slides 17 and 18)*
+
 > What's next: recruit independent witnesses, add key rotation, and pilot with one real vendor.
 >
 > *(slow)* **Signatures prove who signed. A quorum proves everyone got the same thing.**
@@ -108,7 +120,8 @@ Timing: about 3:15 spoken, plus the demo. Cut guide at the bottom.
 |---|---|
 | **90 seconds** | Question (0:00), one incident (cPGuard) plus the "selective" point, one sentence of idea, **Attack 1 only**, last line. |
 | **2 minutes** | The above plus Attack 5 and the scoreboard sentence. |
-| **3 minutes** | The full script, skipping the AOMEI and eScan details if you run long. |
+| **3 minutes** | Question, one incident, idea, Attacks 1 and 5, scoreboard, **one sentence of money** ("vendors pay per app to run the log and witnesses; regulation is arriving; we have no customers yet"), last line. |
+| **4 minutes** | The full script, skipping the AOMEI and eScan details if you run long. |
 | **5+ minutes** | Add: slide 7 (the eight checks), `/verify` in the browser, and the Log page's in-browser proof. |
 
 ## Likely questions, and honest answers
@@ -117,5 +130,6 @@ Timing: about 3:15 spoken, plus the demo. Cut guide at the bottom.
 - **"Who runs the witnesses?"** Today, us (it's a demo). The design needs independent operators: universities, CERTs, other vendors. That's the next milestone, and the moat.
 - **"What if the vendor's key is stolen?"** We can't prevent a malicious release, but we make it public and flag it within one poll. Key rotation and revocation are not built yet.
 - **"What does this cost the user?"** About a hundred milliseconds and about a kilobyte per update, measured in-process; a real network adds round trips.
+- **"Can you really make money? The log is open."** The idea is open on purpose, because a closed transparency log is not trusted. The money is in operating it (hosted log, a managed witness quorum, SLAs, alerting, audit evidence) the way Let's Encrypt is free while certificate vendors still sell. We have no customers yet; the next step is design partners. Chainguard's reported revenue shows the budget line exists, not that our product sells.
 - **"Is this new?"** No: Certificate Transparency, Go's checksum database, Sigstore and TUF came first. Our angle is a drop-in SDK and witness network for desktop apps and agent runtimes, plus detecting selective targeting across clients.
 - **"What if a witness is down?"** The client fails closed: it will not install while it cannot ask every witness about open alerts. That's a deliberate trade, safety over availability.
