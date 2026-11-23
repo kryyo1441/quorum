@@ -147,7 +147,7 @@ test("an observation with app=\"*\" cannot masquerade as a whole-log alert", asy
 test("public input cannot grow state without bound", async () => {
   const { w } = mk([], { t: 1 }, [G]);
   for (let i = 0; i < 200; i++) await w.observe(obs(i.toString(16).padStart(64, "0")));
-  expect((await w.alerts({})).length).toBeLessThan(80); // 32 hashes kept per release, one alert each (not N^2)
+  expect((await w.alerts({})).length).toBeLessThanOrEqual(2 * 32); // 32 reports kept per release, at most two alerts each (not N^2)
 });
 test("an alert raised before the release was published is withdrawn once the log holds it", async () => {
   const logged: string[] = [];
@@ -170,4 +170,72 @@ test("two logged hashes that are not the first one seen still block (alerts are 
   const { w } = mk([], { t: 1 }, [H1, H2]);
   await w.observe(obs(E)); await w.observe(obs(H1)); await w.observe(obs(H2)); // E is unlogged, H1 and H2 are both logged
   for (const h of [H1, H2]) expect((await w.alerts({ app: "a", version: "1.0.0", platform: "win-x64", sha256: h })).map((a) => a.kind)).toEqual(["HASH_MISMATCH"]);
+});
+
+// ---- second Codex pass ----
+const REL = { app: "a", version: "1.0.0", platform: "win-x64" };
+test("concurrent /alerts requests cannot erase fork evidence (no index is held across an await)", async () => {
+  const real = leaves(4), fork = leaves(4, "evil");
+  let release!: () => void; const gate = new Promise<void>((r) => (release = r));
+  const logged: string[] = [];
+  const d: WitnessDeps = { consistency: async (f, t) => consistencyPath(real.slice(0, t), f), logHashes: async () => { await gate; return logged; }, now: () => new Date(1) };
+  const w = new WitnessCore({ id: "w1", secretKey: wit.secretKey, logId: LOG, logPublicKey: log.publicKey, heartbeatMs: 1000 }, d);
+  await w.onHead(head(real));
+  // a client reports a hash the log does not hold yet; its lookup is parked on the gate
+  const pending = w.observe(obs(G)); logged.push(G); release(); await pending;
+  await w.onHead(head(fork, 2000));                                    // now a fork alert exists too
+  const [a, b] = await Promise.all([w.alerts({ ...REL, sha256: G }), w.alerts({ ...REL, sha256: G })]);
+  expect(a.some((x) => x.kind === "INCONSISTENT_STH")).toBe(true);
+  expect(b.some((x) => x.kind === "INCONSISTENT_STH")).toBe(true);
+  expect((await w.alerts({})).some((x) => x.kind === "INCONSISTENT_STH")).toBe(true);
+});
+test("junk reports cannot hide a real conflict: logged hashes are never crowded out", async () => {
+  const { w } = mk([], { t: 1 }, [G, E]);
+  await w.observe(obs(G));
+  for (let i = 0; i < 100; i++) await w.observe(obs((i + 100).toString(16).padStart(64, "0")));  // junk, unlogged
+  await w.observe(obs(E));                                                                       // a second LOGGED hash arrives after the flood
+  for (const h of [G, E]) expect((await w.alerts({ ...REL, sha256: h })).map((x) => x.kind)).toContain("HASH_MISMATCH");
+});
+test("filling the alert history cannot disable detection (blocking does not read the alert list)", async () => {
+  const { w } = mk([], { t: 1 }, [G, E]);
+  for (let i = 0; i < 2500; i++) await w.observe({ ...obs(H(String.fromCharCode(97 + (i % 6)))), app: `junk${i}` });  // 2,500 absence alerts elsewhere
+  await w.observe(obs(G)); await w.observe(obs(E));
+  expect((await w.alerts({ ...REL, sha256: G })).map((x) => x.kind)).toContain("HASH_MISMATCH");
+  expect((await w.alerts({})).length).toBeLessThanOrEqual(2000 + 1);                              // history is a bounded ring
+});
+test("a targeted alerts request costs one listing lookup, however much junk is stored", async () => {
+  let calls = 0;
+  const d: WitnessDeps = { consistency: async () => [], logHashes: async () => { calls++; return []; }, now: () => new Date(1) };
+  const w = new WitnessCore({ id: "w1", secretKey: wit.secretKey, logId: LOG, logPublicKey: log.publicKey, heartbeatMs: 1000 }, d);
+  for (let i = 0; i < 300; i++) await w.observe({ ...obs(H("a")), app: `junk${i}` });
+  calls = 0;
+  await w.alerts({ ...REL, sha256: G });
+  expect(calls).toBeLessThanOrEqual(1);
+});
+test("a report made while the listing was unavailable survives a restart and is checked again", async () => {
+  let up = false;
+  const d: WitnessDeps = { consistency: async () => [], logHashes: async () => { if (!up) throw new Error("down"); return []; }, now: () => new Date(1) };
+  const cfg = { id: "w1", secretKey: wit.secretKey, logId: LOG, logPublicKey: log.publicKey, heartbeatMs: 1000 };
+  const w = new WitnessCore(cfg, d);
+  await w.observe(obs(E));
+  const snap = JSON.parse(JSON.stringify(w.snapshot()));
+  const w2 = new WitnessCore(cfg, d); w2.restore(snap);
+  up = true;
+  expect((await w2.alerts({ ...REL, sha256: E })).map((x) => x.kind)).toEqual(["NOT_IN_LOG"]);
+});
+test("a head-processing error leaves the queue usable", async () => {
+  const real = leaves(4), now = { t: 5000 };
+  let boom = true;
+  const d: WitnessDeps = { consistency: (f, t) => { if (boom) throw new Error("sync throw"); return Promise.resolve(consistencyPath(real.slice(0, t), f)); }, logHashes: async () => [], now: () => new Date(now.t) };
+  const w = new WitnessCore({ id: "w1", secretKey: wit.secretKey, logId: LOG, logPublicKey: log.publicKey, heartbeatMs: 1000 }, d);
+  await w.onHead(head(real.slice(0, 2)));
+  expect((await w.onHead(head(real))).status).toBe("error");
+  boom = false;
+  expect((await w.onHead(head(real))).status).toBe("cosigned");
+});
+
+test("reports that arrive at the same time still see each other (HASH_MISMATCH is not lost to a race)", async () => {
+  const { w } = mk([], { t: 1 }, [G, E]);
+  const raised = (await Promise.all([w.observe(obs(G)), w.observe(obs(E)), w.observe(obs(H1))])).flat();
+  expect(raised.filter((a) => a.kind === "HASH_MISMATCH").length).toBeGreaterThanOrEqual(2);
 });
