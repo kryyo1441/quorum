@@ -26,6 +26,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@uw/client-sdk':
+        specifier: workspace:*
+        version: link:../../packages/client-sdk
       '@uw/log-core':
         specifier: workspace:*
         version: link:../../packages/log-core

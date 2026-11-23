@@ -13,7 +13,8 @@
     "react-dom": "^19",
     "lucide-react": "^0.468.0",
     "@uw/shared": "workspace:*",
-    "@uw/log-core": "workspace:*"
+    "@uw/log-core": "workspace:*",
+    "@uw/client-sdk": "workspace:*"
   },
   "devDependencies": {
     "tailwindcss": "^4",
