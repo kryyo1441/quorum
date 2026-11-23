@@ -33,7 +33,7 @@ export function AttackPanel() {
   return (
     <>
       <div className="mb-8 flex flex-wrap items-center gap-4">
-        <button disabled={busy !== null || !list.length} onClick={() => go("all")} className="flex items-center gap-2 rounded-full bg-ok px-7 py-3 text-lg font-semibold text-bg transition hover:scale-105 active:scale-95 disabled:opacity-40"><Play className="size-5" />Run all 10</button>
+        <button disabled={busy !== null || !list.length} onClick={() => go("all")} className="flex items-center gap-2 rounded-full bg-accent px-7 py-3 text-lg font-semibold text-bg transition hover:scale-105 active:scale-95 disabled:opacity-40"><Play className="size-5" />Run all 10</button>
         <button disabled={busy !== null || !list.length} onClick={metrics} className="rounded-full border border-line px-6 py-3 text-lg text-mute transition hover:text-ink disabled:opacity-40">Measure latency and overhead</button>
         {results.length > 0 && <Badge tone={passed === results.length ? "ok" : "bad"}>{passed} / {results.length} as expected</Badge>}
       </div>

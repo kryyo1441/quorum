@@ -38,9 +38,9 @@ export function Verifier({ cfg }: { cfg: VerifyConfig | { error: string } }) {
       <Card delay={80}>
         <label className="text-sm uppercase tracking-wider text-mute">SHA-256</label>
         <input value={hash} onChange={(e) => void go(e.target.value)} placeholder="paste a hash" spellCheck={false}
-          className="mt-3 w-full rounded-2xl border border-line bg-bg px-5 py-4 font-mono text-lg outline-none transition focus:border-ok" />
+          className="mt-3 w-full rounded-2xl border border-line bg-bg px-5 py-4 font-mono text-lg outline-none transition focus:border-accent" />
         <label onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) void file(f); }}
-          className="mt-6 flex cursor-pointer flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-line p-10 text-center text-lg text-mute transition hover:border-ok hover:text-ok">
+          className="mt-6 flex cursor-pointer flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-line p-10 text-center text-lg text-mute transition hover:border-accent hover:text-accent">
           <FileUp className="size-10" />Drop a file to verify it
           <input type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void file(f); }} />
         </label>

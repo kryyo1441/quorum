@@ -13,13 +13,11 @@ export default async function Overview() {
     { label: "Releases logged", n, Icon: FileCheck2 },
     { label: "Tree size", n, Icon: GitBranch },
     { label: "Witnesses online", n: online, Icon: Server },
-    { label: "Clients verified", n: 0, Icon: Eye },
-    { label: "Attacks blocked", n: 0, Icon: ShieldAlert },
   ];
   return (
     <>
       <Title sub="An update installs only if everyone was offered the same file, and it sits in a public log cosigned by independent witnesses.">
-        Trust the log,<br /><span className="text-ok">not the server.</span>
+        Trust the log,<br /><span className="bg-accent bg-clip-text italic text-transparent">not the server.</span>
       </Title>
       <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(18rem,1fr))]">
         {kpis.map(({ label, n, Icon }, i) => (

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 export function Card({ children, className = "", delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
   return (
     <div style={{ animationDelay: `${delay}ms` }}
-      className={`animate-rise rounded-3xl border border-line bg-panel/80 p-6 backdrop-blur transition duration-300 hover:-translate-y-0.5 hover:border-ok/40 hover:shadow-[0_0_60px_-20px_var(--color-ok)] ${className}`}>
+      className={`animate-rise rounded-3xl border border-line bg-panel/80 p-6 backdrop-blur transition duration-300 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-[0_0_60px_-20px_var(--color-accent)] ${className}`}>
       {children}
     </div>
   );

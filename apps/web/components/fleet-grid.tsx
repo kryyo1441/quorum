@@ -51,7 +51,7 @@ export function FleetGrid() {
   return (
     <>
       <div className="mb-8 flex flex-wrap items-center gap-4">
-        <button onClick={rollout} disabled={busy} className="flex items-center gap-2 rounded-full bg-ok px-7 py-3 text-lg font-semibold text-bg transition hover:scale-105 active:scale-95 disabled:opacity-40"><Play className="size-5" />Roll out 2.1.0</button>
+        <button onClick={rollout} disabled={busy} className="flex items-center gap-2 rounded-full bg-accent px-7 py-3 text-lg font-semibold text-bg transition hover:scale-105 active:scale-95 disabled:opacity-40"><Play className="size-5" />Roll out 2.1.0</button>
         <button onClick={clear} className="flex items-center gap-2 rounded-full border border-line px-6 py-3 text-lg text-mute transition hover:text-ink"><RotateCcw className="size-5" />Reset</button>
         <label className="ml-auto flex items-center gap-3 text-lg text-mute">Attack 1 target
           <select value={target} onChange={(e) => setTarget(e.target.value)} className="rounded-2xl border border-line bg-panel px-4 py-3 text-ink outline-none focus:border-bad">

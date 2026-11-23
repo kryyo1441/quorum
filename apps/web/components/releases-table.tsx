@@ -27,7 +27,7 @@ export function ReleasesTable({ rows: logged, unapproved: flagged }: { rows: Omi
       <Card className="!p-0 overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-4 p-6">
           <h2 className="text-2xl font-medium">{rows.length} releases</h2>
-          <button onClick={() => dlg.current?.showModal()} className="flex items-center gap-2 rounded-full bg-ok px-6 py-3 text-lg font-semibold text-bg transition hover:scale-105 active:scale-95"><Plus className="size-5" /> Publish</button>
+          <button onClick={() => dlg.current?.showModal()} className="flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-lg font-semibold text-bg transition hover:scale-105 active:scale-95"><Plus className="size-5" /> Publish</button>
         </div>
         <div className="overflow-x-auto overflow-y-hidden">
           <table className="w-full min-w-[56rem] text-left text-lg">
@@ -55,10 +55,10 @@ export function ReleasesTable({ rows: logged, unapproved: flagged }: { rows: Omi
       <dialog ref={dlg} onClick={(e) => e.target === dlg.current && dlg.current.close()} className="m-auto w-[min(90vw,32rem)] rounded-3xl border border-line bg-panel p-0 text-ink backdrop:bg-black/70 backdrop:backdrop-blur-sm open:animate-rise">
         <form action={publish} className="grid gap-5 p-8">
           <h3 className="text-3xl font-semibold">Publish release</h3>
-          <input name="app" defaultValue="notepad-minus" required placeholder="app" className="rounded-2xl border border-line bg-bg px-5 py-4 text-lg outline-none focus:border-ok" />
-          <input name="version" defaultValue="2.1.2" required pattern="\d+\.\d+\.\d+" placeholder="semver" className="rounded-2xl border border-line bg-bg px-5 py-4 text-lg outline-none focus:border-ok" />
-          <select name="platform" className="rounded-2xl border border-line bg-bg px-5 py-4 text-lg outline-none focus:border-ok">{platforms.map((p) => <option key={p}>{p}</option>)}</select>
-          <button className="rounded-full bg-ok py-4 text-lg font-semibold text-bg transition hover:scale-[1.02] active:scale-95">Sign &amp; append to log</button>
+          <input name="app" defaultValue="notepad-minus" required placeholder="app" className="rounded-2xl border border-line bg-bg px-5 py-4 text-lg outline-none focus:border-accent" />
+          <input name="version" defaultValue="2.1.2" required pattern="\d+\.\d+\.\d+" placeholder="semver" className="rounded-2xl border border-line bg-bg px-5 py-4 text-lg outline-none focus:border-accent" />
+          <select name="platform" className="rounded-2xl border border-line bg-bg px-5 py-4 text-lg outline-none focus:border-accent">{platforms.map((p) => <option key={p}>{p}</option>)}</select>
+          <button className="rounded-full bg-accent py-4 text-lg font-semibold text-bg transition hover:scale-[1.02] active:scale-95">Sign &amp; append to log</button>
         </form>
       </dialog>
     </>
