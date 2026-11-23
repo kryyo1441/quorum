@@ -48,7 +48,7 @@ Our wedge is a drop-in SDK and a witness network for desktop apps and AI agent r
 | 2 | Forged manifest | `BAD_VENDOR_SIG` |
 | 3 | Stolen key, release not logged | `NOT_IN_LOG` |
 | 4 | Stolen key, release logged | accepted; monitor raises `UNAPPROVED_RELEASE` |
-| 5 | Log operator forks the tree | witnesses refuse and raise `INCONSISTENT_STH`; client gets `INSUFFICIENT_COSIGS` |
+| 5 | Log operator forks the tree | the victim is blocked with `INSUFFICIENT_COSIGS`, and its forwarded head makes every witness raise `INCONSISTENT_STH` |
 | 6 | Downgrade replay | `STALE_STH` (only when the caller passes `expected`) |
 | 7 | One witness compromised | still blocked at k=2 (with k=1 it would not be) |
 | 8 | Log or witnesses down, witnesses silent | fails closed with a reason |
@@ -59,7 +59,7 @@ Our wedge is a drop-in SDK and a witness network for desktop apps and AI agent r
 
 - **Scenario 4 is detected, not prevented.** A client that installs before the monitor polls is exposed for one poll window.
 - Collusion of k witnesses and the log defeats the system. The demo runs one log and three witnesses we operate ourselves.
-- A witness learns of a forked head only when it reaches it (its own poll, gossip, or the operator asking for a cosignature). The frozen `Observation` format carries no signed head, so client reports cannot prove a fork.
+- Fork detection needs at least one client to be shown the fork and verify: that client forwards the log-signed head it saw to every witness. A fork shown to nobody who verifies, or at a size the real log has not reached, is not provable.
 - Witness state is in memory: a restart is trust-on-first-use again.
 - Downgrade protection needs the caller to configure `expected`; without it that check is reported as skipped.
 - Once the log is proven to have equivocated, every client fails closed until the operator is dealt with. The log operator can always do that by stopping the log.
