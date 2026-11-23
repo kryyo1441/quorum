@@ -1,0 +1,6 @@
+{
+  "name": "@uw/example-guarded-updater", "version": "0.0.0", "type": "module", "private": true,
+  "scripts": { "start": "tsx updater.ts", "test": "vitest run" },
+  "dependencies": { "@uw/client-sdk": "workspace:*" },
+  "devDependencies": { "@types/node": "^22", "tsx": "^4", "vitest": "^3" }
+}
