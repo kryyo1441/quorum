@@ -27,6 +27,17 @@ export function vendorKeys(env: Record<string, string | undefined> = process.env
   return { demo: publicKeyOf(devSecret("vendor")) };
 }
 
+/** Registered witnesses whose cosignatures the log stores: WITNESS_PUBLIC_KEYS='{"w1":"<base64 pub>"}'. Required unless DEV=1 (then the PUBLIC dev keys of w1..w3). */
+export function witnessKeys(env: Record<string, string | undefined> = process.env): Record<string, string> {
+  if (env.WITNESS_PUBLIC_KEYS) {
+    const k = JSON.parse(env.WITNESS_PUBLIC_KEYS);
+    if (!k || typeof k !== "object" || Array.isArray(k) || !Object.values(k).every((v) => typeof v === "string")) throw new Error("WITNESS_PUBLIC_KEYS must be a JSON object of witnessId -> base64 public key");
+    return Object.assign(Object.create(null), k);
+  }
+  if (!isDev(env)) throw new Error("WITNESS_PUBLIC_KEYS is required (set DEV=1 only for demos)");
+  return Object.fromEntries(["w1", "w2", "w3"].map((w) => [w, publicKeyOf(devSecret(`witness-${w}`))]));
+}
+
 export const newIdentity = (logId = "test-log"): LogIdentity => ({ logId, ...generateKeypair() });
 
 /** Sign the head for a tree of `size` leaves with root `rootHash`. Cosigs are attached later by witnesses. */
