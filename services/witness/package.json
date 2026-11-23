@@ -13,12 +13,14 @@
     "@hono/node-server": "^1",
     "@uw/shared": "workspace:*",
     "@uw/log-core": "workspace:*",
-    "@uw/witness-core": "workspace:*"
+    "@uw/witness-core": "workspace:*",
+    "pg": "^8"
   },
   "devDependencies": {
     "tsx": "^4",
     "vitest": "^3",
     "typescript": "^5",
-    "@types/node": "^22"
+    "@types/node": "^22",
+    "@types/pg": "^8"
   }
 }
