@@ -12,7 +12,7 @@ Notepad++, eScan, AOMEI and cPGuard were all hit through their update channels; 
 4. **Report.** Clients report what they saw. Two different hashes for one version, or two log-signed heads for one tree size, raise an alert.
 5. **Monitor.** A vendor monitor tails the log and alerts on any release that is not on the approved list.
 
-Packages: `log-core` (Merkle tree, proofs, signatures), `witness-core` (cosign logic, fork detection, observation index, monitor), `client-sdk` (`verifyUpdate`, `uw-verify` CLI, browser-safe), `shared` (schemas, canonical JSON). Services: `log-server`, `witness` (x3), `monitor`, `update-server` (deliberately attackable). `apps/web` is the dashboard, `demo/` the fleet simulator and the adversarial suite.
+Packages: `log-core` (Merkle tree, proofs, signatures), `witness-core` (cosign logic, fork detection, observation index, monitor), `client-sdk` (`verifyUpdate`, trust bundle, `uw-verify` CLI, browser-safe), `vendor-cli` (`uw keygen`, `uw publish`), `shared` (schemas, canonical JSON). Services: `log-server`, `witness` (x3), `monitor`, `update-server` (deliberately attackable). `apps/web` is the dashboard, `demo/` the fleet simulator, the live attacks and the adversarial suite, `examples/guarded-updater` shows how an app adopts the gate.
 
 ## Run it
 
@@ -27,7 +27,22 @@ docker compose up --build
 # or without docker, in-memory log, PUBLIC dev keys (demos only), see docs/HANDOFF.md for the per-service commands
 ```
 
-Then `cd demo && pnpm seed` (publishes `notepad-minus 2.1.0`, waits for 2 cosignatures), `pnpm fleet`, `pnpm attack1`, `pnpm fleet`. The dashboard is on :3000: `/fleet`, `/attack`, `/witnesses`, `/log`, `/releases`, `/verify`.
+A one-shot `seed` container publishes `notepad-minus 2.1.0` and waits until two witnesses have cosigned it. The dashboard is on http://localhost:3000: `/fleet` (roll out, then arm attacks 1, 5, 4 or 9 against the live stack), `/attack` (all ten scenarios, with a signature-only updater alongside), `/witnesses`, `/log`, `/releases`, `/verify`. A 3-minute script is in `submission/DEMO.md`.
+
+## Adopt it in an app
+
+See `examples/guarded-updater`. Short version:
+
+```bash
+uw keygen                                   # vendor key; register the public half with the log
+VENDOR_SECRET_KEY=... uw publish ./app.exe --app notepad-minus --version 2.1.0 --platform win-x64 --url https://cdn.example/app.exe --key-id release-2026 --log https://log.example
+```
+
+```ts
+const cfg = parseTrust(trustBundle, { expected: { app, platform, installedVersion } });  // bundle baked into the app, never fetched from the log
+const verdict = await verifyUpdate(bytes, manifest, cfg);                               // never throws, fails closed
+if (!verdict.ok) abort(verdict.reason, verdict.detail);
+```
 
 ## Prior art
 
@@ -60,13 +75,14 @@ Our wedge is a drop-in SDK and a witness network for desktop apps and AI agent r
 - **Scenario 4 is detected, not prevented.** A client that installs before the monitor polls is exposed for one poll window.
 - Collusion of k witnesses and the log defeats the system. The demo runs one log and three witnesses we operate ourselves.
 - Fork detection needs at least one client to be shown the fork and verify: that client forwards the log-signed head it saw to every witness. A fork shown to nobody who verifies, or at a size the real log has not reached, is not provable.
-- Witness state is in memory: a restart is trust-on-first-use again.
+- A witness keeps its state in its own Postgres schema when `DATABASE_URL` is set (compose does). Without it, state is in memory and a restart is trust-on-first-use again.
+- No key rotation or revocation yet: after a stolen-key alert the vendor cannot yet retire the key in-band.
 - Downgrade protection needs the caller to configure `expected`; without it that check is reported as skipped.
 - Once the log is proven to have equivocated, every client fails closed until the operator is dealt with. The log operator can always do that by stopping the log.
 - Observations are pseudonymous and unauthenticated. That reduces but does not remove telemetry privacy concerns, and the alert scoping (docs/spec-amendments.md) exists so one bogus report cannot block a release for everyone.
 - The log is single-writer, only vendor-key holders can append, and there is no rate limiting.
 - `DEV=1` uses public, deterministic keys: anyone can forge. Demos only.
-- Docker and Postgres were never run by the authors; the Prisma store is tested only through its interface. The adversarial suite has not had the independent review the spec assigns to Codex.
+- The adversarial suite and witness logic have not had the independent review the spec assigns to Codex.
 
 ## Metrics (SPEC §15)
 
