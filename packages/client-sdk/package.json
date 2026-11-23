@@ -1,8 +1,27 @@
 {
-  "name": "@uw/client-sdk", "version": "0.0.0", "type": "module",
-  "main": "dist/index.js", "types": "dist/index.d.ts",
-  "bin": { "uw-verify": "dist/cli.js" },
-  "scripts": { "build": "tsc -p .", "test": "vitest run", "uw-verify": "tsx src/cli.ts" },
-  "dependencies": { "@noble/hashes": "^2", "@uw/log-core": "workspace:*", "@uw/shared": "workspace:*" },
-  "devDependencies": { "@types/node": "^22", "tsx": "^4", "typescript": "^5", "vitest": "^3" }
+  "name": "@uw/client-sdk",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "uw-verify": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "vitest run",
+    "uw-verify": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2",
+    "@uw/log-core": "workspace:*",
+    "@uw/shared": "workspace:*",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^3"
+  }
 }
