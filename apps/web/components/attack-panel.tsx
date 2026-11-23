@@ -4,7 +4,7 @@ import { Check, Swords, X, Play } from "lucide-react";
 import { Badge, Card } from "./ui";
 
 type Sc = { n: number; name: string; attack: string; expected: string };
-type Run = { n: number; actual: string; pass: boolean; evidence: string[]; ms: number; alertMs?: number; expected: string };
+type Run = { naive?: string; n: number; actual: string; pass: boolean; evidence: string[]; ms: number; alertMs?: number; expected: string };
 type Metrics = { note: string; verifyMs: { p50: number; p95: number }; hashMs: number; overheadBytes: number; appendsPerSecond: number; publishToCosignedMs: number };
 
 export function AttackPanel() {
@@ -56,6 +56,7 @@ export function AttackPanel() {
                 <div className="flex flex-wrap items-center gap-3"><Badge tone={r.pass ? "ok" : "bad"}>{r.pass ? <Check className="size-4" /> : <X className="size-4" />}{r.pass ? "as expected" : "UNEXPECTED"}</Badge>
                   <span className="text-sm text-mute">{r.ms.toFixed(0)} ms{r.alertMs !== undefined && ` · attack to alert ${r.alertMs.toFixed(0)} ms`}</span></div>
                 <p className="font-mono text-sm">{r.actual}</p>
+                {r.naive && <p className={`rounded-xl border px-3 py-2 text-sm ${r.naive.includes("INSTALLS") ? "border-bad/50 bg-bad/10 text-bad" : "border-line text-mute"}`}><b>Signature-only updater:</b> {r.naive}</p>}
                 <ul className="grid gap-1 text-sm text-mute">{r.evidence.map((e, k) => <li key={k}>· {e}</li>)}</ul>
               </div>}
             </Card>);
