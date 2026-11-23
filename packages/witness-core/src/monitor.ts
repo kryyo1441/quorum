@@ -15,6 +15,7 @@ export class Monitor {
   private readonly approved = new Set<string>();
   private readonly raised = new Set<string>();
   private lastHead?: STH;
+  private readonly leafSeen = new Map<number, string>(); // first leaf hash seen at each index: a later change means stored history was rewritten
   readonly alerts: SplitViewAlert[] = [];
   constructor(private readonly cfg: MonitorConfig, private readonly d: MonitorDeps) {}
 
@@ -41,6 +42,9 @@ export class Monitor {
     for (const l of (await this.d.entries()).slice(0, head.treeSize)) {
       const e = l.entry, leafHash = leafHashOfEntry(e);
       if (leafHash !== l.leafHash) { add("NOT_IN_LOG", e, { idx: l.idx, claimed: l.leafHash, recomputed: leafHash }, `tamper:${l.idx}`); continue; }
+      const was = this.leafSeen.get(l.idx);
+      if (was !== undefined && was !== leafHash) add("INCONSISTENT_STH", e, { idx: l.idx, was, now: leafHash, note: "stored leaf rewritten since first seen" }, `rewrite:${l.idx}:${leafHash}`);
+      else if (was === undefined) this.leafSeen.set(l.idx, leafHash);
       const vk = this.cfg.vendorPublicKeys[e.vendorKeyId];
       const signed = vk !== undefined && verifyEntry(e, vk);
       if (!signed || !this.approved.has(`${e.app}\0${e.version}\0${e.platform}\0${e.sha256}`))
