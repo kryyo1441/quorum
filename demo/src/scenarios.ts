@@ -1,6 +1,6 @@
 // The adversarial suite of SPEC §10. ONE module: Vitest asserts on it and the dashboard's /attack renders it, so they cannot disagree.
 // Each scenario runs on its own fresh in-process world (real services, real crypto). NOT yet reviewed by Codex (SPEC says Codex owns this suite).
-import { cosign, leafHashOfEntry } from "@uw/log-core";
+import { cosign, leafHashOfEntry, verifyEntry } from "@uw/log-core";
 import { checkUpdate, verdictOf, type VerifyConfig, type Verdict } from "@uw/client-sdk";
 import type { ReleaseEntry, STH } from "@uw/shared";
 import { APP, EVIL, GOOD, PLATFORM, attackWith, clientIds, makeEntry, publish, runClient, runFleet, sha256, type ClientResult } from "./fleet.js";
@@ -11,8 +11,9 @@ export type ScenarioResult = {
   evidence: string[];       // what was observed, one line each
   ms: number;               // wall time of the scenario
   alertMs?: number;         // time from the attack to the first alert / block (§15)
+  naive?: string;           // what a signature-only updater (hash + vendor signature, no log, no witnesses) does with the SAME attack input
 };
-type Run = (w: World) => Promise<{ actual: string; pass: boolean; evidence: string[]; alertMs?: number }>;
+type Run = (w: World) => Promise<{ actual: string; pass: boolean; evidence: string[]; alertMs?: number; naive?: string }>;
 const EVIL2 = new TextEncoder().encode("notepad-minus 2.1.0 TAMPERED build (variant 2)");
 const V200 = new TextEncoder().encode("notepad-minus 2.0.0 vulnerable build");
 const kinds = async (w: World, q = "") => Promise.all(w.witnesses.map(async (x) => ((await (await w.fetch(`${x.url}/alerts${q}`)).json()) as { kind: string }[]).map((a) => a.kind)));
@@ -23,6 +24,13 @@ async function verdictFor(w: World, binary: Uint8Array, manifest: ReleaseEntry, 
     expected: o.expected === false ? undefined : { app: APP, platform: PLATFORM, installedVersion: o.installed ?? "2.0.0" } };
   const { checks, sth } = await checkUpdate(binary, manifest, cfg, { fetch: w.fetch, now: w.env.now! });
   return { checks, verdict: verdictOf(checks, manifest, sth) as Verdict };
+}
+/** The baseline Quorum replaces: today's typical updater checks the file hash against the manifest and the vendor's signature on it. Nothing else. */
+function naive(w: World, binary: Uint8Array, m: ReleaseEntry): string {
+  const key = w.env.verify.vendorPublicKeys[m.vendorKeyId];
+  if (sha256(binary) !== m.sha256) return "blocks it locally (hash mismatch), but nobody else is told";
+  if (!key || !verifyEntry(m, key)) return "blocks it (bad signature)";
+  return "INSTALLS THE ATTACKER'S FILE";
 }
 const why = (v: Verdict) => (v.ok ? "ACCEPTED" : `${v.reason} (${v.detail})`);
 const reasonOf = (v: Verdict) => (v.ok ? "ACCEPTED" : v.reason);
@@ -38,7 +46,7 @@ export const SCENARIOS: { n: number; name: string; attack: string; expected: str
       const c7 = res.find((r) => r.id === "c7")!, others = res.filter((r) => r.id !== "c7");
       const alerts = await kinds(w), alertMs = performance.now() - t0;
       const pass = c7.reason === "HASH_MISMATCH" && others.every((r) => r.state === "verified") && alerts.every((a) => a.includes("HASH_MISMATCH"));
-      return { actual: c7.reason ?? "ACCEPTED", pass, alertMs, evidence: [`c7: ${c7.reason}`, `other 11 clients verified: ${others.filter((r) => r.state === "verified").length}`, `witness alerts: ${alerts.map((a) => a.join("+")).join(" | ")}`] };
+      return { actual: c7.reason ?? "ACCEPTED", pass, alertMs, naive: naive(w, EVIL, makeEntry(w.env, GOOD)), evidence: [`c7: ${c7.reason}`, `other 11 clients verified: ${others.filter((r) => r.state === "verified").length}`, `witness alerts: ${alerts.map((a) => a.join("+")).join(" | ")}`] };
     } },
   { n: 2, name: "Forged manifest", attack: "Update server serves a binary with a manifest the vendor never signed", expected: "BAD_VENDOR_SIG or NOT_IN_LOG",
     run: async (w) => {
@@ -47,14 +55,14 @@ export const SCENARIOS: { n: number; name: string; attack: string; expected: str
       const edited = { ...good, sha256: sha256(EVIL) };                                                                      // genuine manifest with the hash swapped
       const a = await verdictFor(w, EVIL, forgedByAttacker), b = await verdictFor(w, EVIL, edited);
       const okSet = (v: Verdict) => !v.ok && (v.reason === "BAD_VENDOR_SIG" || v.reason === "NOT_IN_LOG");
-      return { actual: `${reasonOf(a.verdict)} / ${reasonOf(b.verdict)}`, pass: okSet(a.verdict) && okSet(b.verdict), evidence: [`attacker-signed: ${why(a.verdict)}`, `hash swapped in genuine manifest: ${why(b.verdict)}`] };
+      return { naive: naive(w, EVIL, forgedByAttacker), actual: `${reasonOf(a.verdict)} / ${reasonOf(b.verdict)}`, pass: okSet(a.verdict) && okSet(b.verdict), evidence: [`attacker-signed: ${why(a.verdict)}`, `hash swapped in genuine manifest: ${why(b.verdict)}`] };
     } },
   { n: 3, name: "Stolen key, release not logged", attack: "Attacker holds the vendor key, signs a malicious release, never logs it", expected: "NOT_IN_LOG",
     run: async (w) => {
       await publish(w.env);
       const evilEntry = makeEntry(w.env, EVIL, "2.2.0"); // validly vendor-signed, hash matches
       const { checks, verdict } = await verdictFor(w, EVIL, evilEntry);
-      return { actual: reasonOf(verdict), pass: !verdict.ok && verdict.reason === "NOT_IN_LOG", evidence: [`vendorSig check: ${checks.find((c) => c.id === "vendorSig")!.status} (the key IS valid)`, `verdict: ${why(verdict)}`] };
+      return { naive: naive(w, EVIL, evilEntry), actual: reasonOf(verdict), pass: !verdict.ok && verdict.reason === "NOT_IN_LOG", evidence: [`vendorSig check: ${checks.find((c) => c.id === "vendorSig")!.status} (the key IS valid)`, `verdict: ${why(verdict)}`] };
     } },
   { n: 4, name: "Stolen key, release logged", attack: "Attacker holds the vendor key and logs a malicious release", expected: "Clients accept; monitor raises UNAPPROVED_RELEASE within one poll",
     run: async (w) => {
@@ -67,7 +75,7 @@ export const SCENARIOS: { n: number; name: string; attack: string; expected: str
       const client = await runClient(w.env, "c1");
       const tryApprove = await w.fetch(`${w.env.monitor!.url}/approved`, { method: "POST", body: JSON.stringify({ app: APP, version: "2.2.0", platform: PLATFORM, sha256: sha256(EVIL) }) }); // the release key is not the approval token
       const pass = r.status === 201 && client.state === "verified" && alerts.length === 1 && tryApprove.status === 401;
-      return { actual: `${client.state === "verified" ? "ACCEPTED" : client.reason}; monitor: ${alerts.length ? "UNAPPROVED_RELEASE" : "no alert"}`, pass, alertMs,
+      return { naive: naive(w, EVIL, evilEntry) + " and nothing ever alerts the vendor", actual: `${client.state === "verified" ? "ACCEPTED" : client.reason}; monitor: ${alerts.length ? "UNAPPROVED_RELEASE" : "no alert"}`, pass, alertMs,
         evidence: ["detected, NOT prevented: a client that installs before the monitor polls is exposed for one poll window", `client verdict: ${client.state}`, `monitor alerts: ${alerts.map((a) => `${a.kind} ${a.version}`).join(", ") || "none"}`, `attacker approving its own release without the monitor token: HTTP ${tryApprove.status}`] };
     } },
   { n: 5, name: "Split view (forked log)", attack: "Log operator shows client c3 a forked tree containing a release the public log never has", expected: "Victim blocked INSUFFICIENT_COSIGS; witnesses raise INCONSISTENT_STH",
@@ -84,7 +92,7 @@ export const SCENARIOS: { n: number; name: string; attack: string; expected: str
       const after = await runClient(w.env, "c1");
       // Two log-signed heads for one size prove the log equivocated, so EVERY client fails closed (SPLIT_VIEW) until the operator is dealt with.
       const pass = !verdict.ok && verdict.reason === "INSUFFICIENT_COSIGS" && alerts.every((a) => a.includes("INCONSISTENT_STH")) && before.state === "verified" && after.reason === "SPLIT_VIEW";
-      return { actual: `client: ${reasonOf(verdict)}; witnesses: ${[...new Set(alerts.flat())].join(",")}`, pass, alertMs,
+      return { naive: naive(w, EVIL, evilEntry) + "; a forked log is invisible to it", actual: `client: ${reasonOf(verdict)}; witnesses: ${[...new Set(alerts.flat())].join(",")}`, pass, alertMs,
         evidence: [`fork head has ${head.cosigs.length} cosigs; copying the real head's cosigs does not work (they bind the root)`, `inclusion + log signature on the fork pass: ${checks.filter((c) => ["inclusion", "logSig"].includes(c.id)).map((c) => c.status).join("/")}`, `client c3: ${why(verdict)}`, `witness alerts: ${alerts.map((a) => a.join("+")).join(" | ")}`, `honest client c1 before the fork was shown to witnesses: ${before.state}; after: ${after.state} ${after.reason ?? ""} (a proven fork blocks everyone: the log can no longer be trusted)`,
           "the victim's verification forwarded the forked head it was shown to every witness: one client's view became evidence for all"] };
     } },
@@ -94,7 +102,7 @@ export const SCENARIOS: { n: number; name: string; attack: string; expected: str
       await publish(w.env, GOOD, "2.1.0");
       const a = await verdictFor(w, V200, old, { installed: "2.1.0" });
       const b = await verdictFor(w, V200, old, { expected: false });
-      return { actual: reasonOf(a.verdict), pass: !a.verdict.ok && a.verdict.reason === "STALE_STH", evidence: [`installed 2.1.0, offered 2.0.0: ${why(a.verdict)}`, `without \`expected\` configured the target check is skipped and the same replay is ${b.verdict.ok ? "ACCEPTED" : "blocked"}: every caller must pass \`expected\``] };
+      return { naive: naive(w, V200, old) + " (a downgrade to the vulnerable version)", actual: reasonOf(a.verdict), pass: !a.verdict.ok && a.verdict.reason === "STALE_STH", evidence: [`installed 2.1.0, offered 2.0.0: ${why(a.verdict)}`, `without \`expected\` configured the target check is skipped and the same replay is ${b.verdict.ok ? "ACCEPTED" : "blocked"}: every caller must pass \`expected\``] };
     } },
   { n: 7, name: "One witness compromised", attack: "A single witness cosigns anything, including a forked head", expected: "Still blocked (k=2 of 3)",
     run: async (w) => {
@@ -106,7 +114,7 @@ export const SCENARIOS: { n: number; name: string; attack: string; expected: str
       await post(w, `${fork.url}/sth/${head.treeSize}/cosigs`, cosign(head, bad.id, bad.secretKey, new Date(w.env.now!()).toISOString())); // w3's key signs the fork
       const k2 = await verdictFor(w, EVIL, evilEntry, { logUrl: fork.url });
       const k1 = await verdictFor(w, EVIL, evilEntry, { logUrl: fork.url, threshold: 1 });
-      return { actual: reasonOf(k2.verdict), pass: !k2.verdict.ok && k2.verdict.reason === "INSUFFICIENT_COSIGS", evidence: [`k=2: ${why(k2.verdict)}`, `control, k=1: ${k1.verdict.ok ? "ACCEPTED: with k=1 one bad witness WOULD be enough" : "blocked"}`] };
+      return { naive: naive(w, EVIL, evilEntry) + " (witnesses do not exist)", actual: reasonOf(k2.verdict), pass: !k2.verdict.ok && k2.verdict.reason === "INSUFFICIENT_COSIGS", evidence: [`k=2: ${why(k2.verdict)}`, `control, k=1: ${k1.verdict.ok ? "ACCEPTED: with k=1 one bad witness WOULD be enough" : "blocked"}`] };
     } },
   { n: 8, name: "Log or witnesses unreachable", attack: "The log, one witness, or all witnesses are down; or witnesses stop cosigning", expected: "Fails closed with a clear reason",
     run: async (w) => {
