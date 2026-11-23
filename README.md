@@ -1,4 +1,4 @@
-# Update Witness
+# Quorum
 
 A client installs an update **only if it is the same file everyone else was offered, and that file is in the vendor's public, append-only release log, cosigned by independent witnesses.** The update server stops being a party you have to trust.
 
