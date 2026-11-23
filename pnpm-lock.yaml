@@ -213,13 +213,22 @@ importers:
       '@hono/node-server':
         specifier: ^1
         version: 1.19.19(hono@4.13.20)
+      '@uw/log-core':
+        specifier: workspace:*
+        version: link:../../packages/log-core
       '@uw/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@uw/witness-core':
+        specifier: workspace:*
+        version: link:../../packages/witness-core
       hono:
         specifier: ^4
         version: 4.13.20
     devDependencies:
+      '@types/node':
+        specifier: ^22
+        version: 22.20.5
       tsx:
         specifier: ^4
         version: 4.23.15
