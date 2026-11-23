@@ -1,0 +1,16 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @uw/shared build && pnpm --filter @uw/log-core build && pnpm --filter @uw/witness-core build && pnpm --filter @uw/client-sdk build
+      - run: pnpm --filter @uw/log-server db:generate
+      - run: pnpm -r --if-present test          # unit tests, fixtures and the 10 adversarial scenarios (demo/src/scenarios.test.ts)
+      - run: pnpm --filter @uw/web exec tsc --noEmit
