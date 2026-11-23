@@ -12,12 +12,14 @@ export type WitnessDeps = {
   logHashes(app: string, version: string, platform: string): Promise<string[]>;     // sha256 values the log holds for a release; throws when unreachable
   now(): Date;
 };
+export type WitnessSnapshot = { last?: STH; heads: STH[]; alerts: SplitViewAlert[]; observations: Observation[] };
 export type HeadResult =
   | { status: "cosigned"; sth: STH }                    // sth = the verified head, carrying this witness's new cosig
   | { status: "unchanged" | "behind" | "error" | "rejected"; detail?: string }
   | { status: "inconsistent"; alert: SplitViewAlert };  // refused to cosign
 
 export type AlertFilter = { app?: string; version?: string; platform?: string; sha256?: string };
+const forkKey = (a: STH, b: STH) => [a.rootHash, b.rootHash].sort().join(":") + `@${a.treeSize}/${b.treeSize}`; // one alert per pair of conflicting heads
 const ANY = "*"; // INCONSISTENT_STH is about the whole log, not one release
 
 export class WitnessCore {
@@ -27,21 +29,36 @@ export class WitnessCore {
   private readonly heads = new Map<number, STH>(); // every log-signed head ever shown to us, by size: conflicts are proof of a fork
   private readonly all: SplitViewAlert[] = [];
   private readonly obs = new Map<string, Map<string, Observation>>(); // release -> sha256 -> first observation
-  // ponytail: all state is in memory, so a restart is trust-on-first-use again. Persist `last` + `heads` per witness to close that.
+  /** Called after every state change; the service persists `snapshot()` here so a restart does not forget the last verified head (no trust-on-first-use twice). */
+  onChange?: () => void;
 
   constructor(readonly cfg: WitnessConfig, private readonly d: WitnessDeps) {}
 
   head(): STH | undefined { return this.lastCosigned; }
   /** Demo reset: forget alerts and the observation index. Keeps the verified head history, so a fork can still be detected afterwards. */
-  reset() { this.all.length = 0; this.forks.clear(); this.obs.clear(); }
+  reset() { this.all.length = 0; this.forks.clear(); this.obs.clear(); this.onChange?.(); }
+
+  /** Everything that must survive a restart: the last verified head, every log-signed head seen, alerts, and the observation index. */
+  snapshot(): WitnessSnapshot {
+    return { last: this.last, heads: [...this.heads.values()], alerts: [...this.all], observations: [...this.obs.values()].flatMap((m) => [...m.values()]) };
+  }
+  /** Load a snapshot into a fresh core. The cosig is re-issued on the next heartbeat (lastCosignAt stays 0). */
+  restore(s: WitnessSnapshot) {
+    this.last = s.last;
+    for (const h of s.heads) this.heads.set(h.treeSize, h);
+    this.all.push(...s.alerts);
+    for (const a of s.alerts) if (a.kind === "INCONSISTENT_STH") this.forks.set(forkKey(a.evidence.headA as STH, a.evidence.headB as STH), a);
+    for (const o of s.observations) { const k = `${o.app}\0${o.version}\0${o.platform}`, m = this.obs.get(k) ?? new Map<string, Observation>(); m.set(o.sha256, o); this.obs.set(k, m); }
+  }
   private alert(kind: SplitViewAlert["kind"], rel: { app: string; version: string; platform: string }, evidence: Record<string, unknown>): SplitViewAlert {
     const a: SplitViewAlert = { kind, ...rel, evidence, raisedBy: this.cfg.id, raisedAt: this.d.now().toISOString() };
     this.all.push(a);
+    this.onChange?.();
     return a;
   }
   private readonly forks = new Map<string, SplitViewAlert>();
   private fork(a: STH, b: STH): HeadResult {
-    const key = [a.rootHash, b.rootHash].sort().join(":") + `@${a.treeSize}/${b.treeSize}`; // one alert per pair of conflicting heads
+    const key = forkKey(a, b);
     let alert = this.forks.get(key);
     if (!alert) { alert = this.alert("INCONSISTENT_STH", { app: ANY, version: ANY, platform: ANY }, { headA: a, headB: b }); this.forks.set(key, alert); }
     return { status: "inconsistent", alert };
@@ -55,7 +72,7 @@ export class WitnessCore {
 
     const prior = this.heads.get(sth.treeSize);
     if (prior && prior.rootHash !== sth.rootHash) return this.fork(prior, sth); // same size, two roots, both log-signed
-    this.heads.set(sth.treeSize, prior ?? sth);
+    if (!prior) { this.heads.set(sth.treeSize, sth); this.onChange?.(); }
 
     const last = this.last;
     if (!last) return this.cosignHead(sth); // first sight: trust on first use
@@ -76,6 +93,7 @@ export class WitnessCore {
     this.last = sth;
     this.lastCosignAt = this.d.now().getTime();
     this.lastCosigned = { ...sth, cosigs: [cosign(sth, this.cfg.id, this.cfg.secretKey, ts)] };
+    this.onChange?.();
     return { status: "cosigned", sth: this.lastCosigned };
   }
 
@@ -88,6 +106,7 @@ export class WitnessCore {
     if (byHash.has(o.sha256)) return [];
     const others = [...byHash.values()];
     byHash.set(o.sha256, o);
+    this.onChange?.();
     const raised = others.map((other) => this.alert("HASH_MISMATCH", rel, { hashes: [other.sha256, o.sha256], observationA: other, observationB: o }));
     try {
       if (!(await this.d.logHashes(o.app, o.version, o.platform)).includes(o.sha256)) raised.push(this.alert("NOT_IN_LOG", rel, { sha256: o.sha256, observation: o }));
