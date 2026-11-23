@@ -76,7 +76,7 @@ export function FleetGrid() {
                 <div className="mt-5 text-sm text-mute">notepad-minus 2.0.0 → 2.1.0</div>
                 <div className="mt-1 text-xl font-medium capitalize">{s}</div>
                 {r && <div className="mt-1 text-sm text-mute">{r.ms.toFixed(0)} ms</div>}
-                {s === "blocked" && <div className="mt-2 text-sm"><b>{r?.reason}</b>: {r?.detail}</div>}
+                {s === "blocked" && <div className="mt-2 break-all text-sm"><b>{r?.reason}</b><span className="line-clamp-2 text-xs opacity-80">{r?.detail}</span></div>}
               </button>
               {open === id && r && <ul className="mt-4 grid gap-1 border-t border-line pt-3 text-sm">
                 {r.checks.map((c) => { const CIcon = CI[c.status]; return <li key={c.id} className={`flex items-start gap-2 ${c.status === "fail" ? "text-bad" : c.status === "pass" ? "text-ok" : "text-mute"}`}><CIcon className="mt-0.5 size-4 shrink-0" />{c.label}</li>; })}
