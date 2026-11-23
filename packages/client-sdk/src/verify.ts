@@ -112,7 +112,11 @@ export async function checkUpdate(binary: Uint8Array, manifest: ReleaseEntry, cf
   // 4. head checks
   if (!sth) { add("logSig", "skip"); add("cosigs", "skip"); add("fresh", "skip"); }
   else {
-    verifyLogSig(sth, cfg.logPublicKey) ? add("logSig", "pass") : fail("logSig", "BAD_INCLUSION_PROOF", "head log signature invalid");
+    const logOk = verifyLogSig(sth, cfg.logPublicKey);
+    logOk ? add("logSig", "pass") : fail("logSig", "BAD_INCLUSION_PROOF", "head log signature invalid");
+    // Cross-client split-view detection: a log-signed head is self-authenticating evidence, so hand the head THIS client was shown to every witness.
+    // If the log showed us a fork, the witnesses now hold two signed heads for one size and raise INCONSISTENT_STH, even though the operator never sent them the fork.
+    if (logOk) await Promise.allSettled(cfg.witnesses.map((w) => d.fetch(`${w.url}/gossip`, { method: "POST", body: JSON.stringify(sth), signal: AbortSignal.timeout(TIMEOUT_MS) })));
 
     const ids = cfg.witnesses.map((w) => w.id), keys = cfg.witnesses.map((w) => w.publicKey);
     const cfgErr = !sane(cfg.threshold, (n) => Number.isInteger(n) && n >= 1 && n <= cfg.witnesses.length) ? `threshold ${cfg.threshold} must be an integer in 1..${cfg.witnesses.length}`
