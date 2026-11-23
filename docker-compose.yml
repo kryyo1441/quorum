@@ -36,12 +36,13 @@ services:
       LOG_URL: http://log-server:4000
       LOG_PUBLIC_KEY: ${LOG_PUBLIC_KEY:?run `pnpm env:init` first}
       WITNESS_ID: w1
+      DATABASE_URL: "postgresql://uw:uw@postgres:5432/uw"   # each witness keeps its state in its own schema (witness_w1)
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       WITNESS_SECRET_KEY: ${WITNESS_1_SECRET_KEY:?run `pnpm env:init` first}
       PEERS: http://witness-2:4102,http://witness-3:4103
       PORT: 4101
     ports: ["4101:4101"]
-    depends_on: [log-server]
+    depends_on: { postgres: { condition: service_healthy }, log-server: { condition: service_started } }
   witness-2:
     <<: *witness
     environment: { <<: *wenv, WITNESS_ID: w2, WITNESS_SECRET_KEY: "${WITNESS_2_SECRET_KEY:?run `pnpm env:init` first}", PEERS: "http://witness-1:4101,http://witness-3:4103", PORT: 4102 }
