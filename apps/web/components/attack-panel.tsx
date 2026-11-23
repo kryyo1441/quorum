@@ -1,51 +1,67 @@
 "use client";
-import { useState } from "react";
-import { Check, Swords, RotateCcw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Swords, X, Play } from "lucide-react";
 import { Badge, Card } from "./ui";
-import { scenarios } from "@/lib/mock";
 
-type Run = { id: number; expect: string; actual: string; ms: number };
+type Sc = { n: number; name: string; attack: string; expected: string };
+type Run = { n: number; actual: string; pass: boolean; evidence: string[]; ms: number; alertMs?: number; expected: string };
+type Metrics = { note: string; verifyMs: { p50: number; p95: number }; hashMs: number; overheadBytes: number; appendsPerSecond: number; publishToCosignedMs: number };
 
 export function AttackPanel() {
-  const [runs, setRuns] = useState<Run[]>([]);
-  const [busy, setBusy] = useState<number | null>(null);
-  const [target, setTarget] = useState(7);
+  const [list, setList] = useState<Sc[]>([]);
+  const [runs, setRuns] = useState<Record<number, Run>>({});
+  const [busy, setBusy] = useState<number | "all" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [m, setM] = useState<Metrics | null>(null);
 
-  const run = (id: number, expect: string) => {
-    setBusy(id);
-    // ponytail: simulated, actual === expect. Wire to demo/ attack scripts + client-sdk for real outcomes.
-    setTimeout(() => { setRuns((r) => [{ id, expect, actual: expect, ms: 0 }, ...r]); setBusy(null); }, 900);
+  useEffect(() => { fetch("/api/demo/scenarios").then((r) => (r.ok ? r.json() : Promise.reject(new Error(`demo server: HTTP ${r.status}`)))).then(setList).catch((e) => setErr(String(e.message ?? e))); }, []);
+
+  const run = async (n: number) => {
+    const r = await fetch(`/api/demo/scenarios/${n}/run`, { method: "POST" });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const x: Run = await r.json();
+    setRuns((p) => ({ ...p, [n]: x }));
   };
+  const go = async (n: number | "all") => {
+    setBusy(n); setErr(null);
+    try { if (n === "all") for (const s of list) await run(s.n); else await run(n); } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    setBusy(null);
+  };
+  const metrics = async () => { setBusy("all"); try { const r = await fetch("/api/demo/metrics"); setM(r.ok ? await r.json() : null); } finally { setBusy(null); } };
+  const results = list.filter((s) => runs[s.n]), passed = results.filter((s) => runs[s.n].pass).length;
 
   return (
     <>
       <div className="mb-8 flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-3 text-lg text-mute">Target client
-          <select value={target} onChange={(e) => setTarget(Number(e.target.value))} className="rounded-2xl border border-line bg-panel px-4 py-3 text-ink outline-none focus:border-bad">
-            {Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>#{i + 1}</option>)}
-          </select>
-        </label>
-        <button onClick={() => setRuns([])} className="ml-auto flex items-center gap-2 rounded-full border border-line px-6 py-3 text-lg text-mute transition hover:text-ink"><RotateCcw className="size-5" />Reset</button>
+        <button disabled={busy !== null || !list.length} onClick={() => go("all")} className="flex items-center gap-2 rounded-full bg-ok px-7 py-3 text-lg font-semibold text-bg transition hover:scale-105 active:scale-95 disabled:opacity-40"><Play className="size-5" />Run all 10</button>
+        <button disabled={busy !== null || !list.length} onClick={metrics} className="rounded-full border border-line px-6 py-3 text-lg text-mute transition hover:text-ink disabled:opacity-40">Measure latency and overhead</button>
+        {results.length > 0 && <Badge tone={passed === results.length ? "ok" : "bad"}>{passed} / {results.length} as expected</Badge>}
       </div>
+      {err && <p className="mb-6 rounded-2xl border border-bad/50 bg-bad/10 p-5 text-lg text-bad">{err}</p>}
+      {m && <Card className="mb-8"><div className="flex flex-wrap gap-x-10 gap-y-3 text-lg">
+        <span><b>{m.verifyMs.p50.toFixed(0)} ms</b> <span className="text-mute">median verify</span></span><span><b>{m.verifyMs.p95.toFixed(0)} ms</b> <span className="text-mute">p95</span></span>
+        <span><b>{m.hashMs.toFixed(2)} ms</b> <span className="text-mute">hashing</span></span><span><b>{m.overheadBytes} B</b> <span className="text-mute">proofs + head per update</span></span>
+        <span><b>{m.appendsPerSecond.toFixed(0)}</b> <span className="text-mute">log appends / s</span></span><span className="w-full text-sm text-mute">{m.note}</span></div></Card>}
       <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,26rem),1fr))]">
-        {scenarios.map((s, i) => (
-          <Card key={s.id} delay={i * 60} className="flex flex-col !p-6">
-            <div className="flex items-center justify-between"><span className="text-5xl font-semibold text-mute">{s.id}</span><Badge tone="mute">{s.expect}</Badge></div>
-            <p className="mt-4 flex-1 text-lg">{s.name}</p>
-            <button disabled={busy !== null} onClick={() => run(s.id, s.expect)} className="mt-6 flex items-center justify-center gap-2 rounded-full bg-bad/90 py-3 text-lg font-semibold text-bg transition hover:scale-[1.03] active:scale-95 disabled:opacity-40">
-              <Swords className={`size-5 ${busy === s.id ? "animate-spin" : ""}`} />{busy === s.id ? "Running…" : "Run attack"}
-            </button>
-          </Card>))}
+        {list.map((s, i) => {
+          const r = runs[s.n];
+          return (
+            <Card key={s.n} delay={i * 60} className="flex flex-col !p-6">
+              <div className="flex items-center justify-between"><span className="text-5xl font-semibold text-mute">{s.n}</span><Badge tone="mute">{s.expected}</Badge></div>
+              <p className="mt-4 text-xl font-medium">{s.name}</p><p className="mt-1 flex-1 text-mute">{s.attack}</p>
+              <button disabled={busy !== null} onClick={() => go(s.n)} className="mt-6 flex items-center justify-center gap-2 rounded-full bg-bad/90 py-3 text-lg font-semibold text-bg transition hover:scale-[1.03] active:scale-95 disabled:opacity-40">
+                <Swords className={`size-5 ${busy === s.n || busy === "all" ? "animate-spin" : ""}`} />{busy === s.n ? "Running…" : "Run attack"}
+              </button>
+              {r && <div className="animate-rise mt-5 grid gap-2 border-t border-line pt-4">
+                <div className="flex flex-wrap items-center gap-3"><Badge tone={r.pass ? "ok" : "bad"}>{r.pass ? <Check className="size-4" /> : <X className="size-4" />}{r.pass ? "as expected" : "UNEXPECTED"}</Badge>
+                  <span className="text-sm text-mute">{r.ms.toFixed(0)} ms{r.alertMs !== undefined && ` · attack to alert ${r.alertMs.toFixed(0)} ms`}</span></div>
+                <p className="font-mono text-sm">{r.actual}</p>
+                <ul className="grid gap-1 text-sm text-mute">{r.evidence.map((e, k) => <li key={k}>· {e}</li>)}</ul>
+              </div>}
+            </Card>);
+        })}
       </div>
-      <div className="mb-5 mt-14 flex items-center gap-4"><h2 className="text-3xl font-medium">Results</h2><Badge tone="mute">simulated</Badge></div>
-      <div className="grid gap-3">
-        {runs.length === 0 && <p className="text-lg text-mute">Nothing run yet.</p>}
-        {runs.map((r, i) => (
-          <div key={i} className="animate-rise flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-line bg-panel p-5 text-lg">
-            <Badge tone="ok"><Check className="size-4" />pass</Badge><b>Scenario {r.id}</b>
-            <span className="text-mute">expected</span><span className="font-mono">{r.expect}</span><span className="text-mute">actual</span><span className="font-mono">{r.actual}</span>
-          </div>))}
-      </div>
+      {!list.length && !err && <p className="text-lg text-mute">Loading scenarios…</p>}
     </>
   );
 }
