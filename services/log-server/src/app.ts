@@ -1,6 +1,7 @@
 import { Hono } from "hono";
-import { CompactTree, consistencyPath, inclusionPath, leafHashOfEntry, verifyEntry } from "@uw/log-core";
-import { ReleaseEntry } from "@uw/shared";
+import { cors } from "hono/cors";
+import { CompactTree, consistencyPath, inclusionPath, leafHashOfEntry, verifyCosig, verifyEntry } from "@uw/log-core";
+import { Cosig, ReleaseEntry } from "@uw/shared";
 import { signHead, type LogIdentity } from "./log.js";
 import type { Leaf, LogStore } from "./store.js";
 
@@ -8,8 +9,9 @@ class Tampered extends Error {}
 
 /** vendorKeys: keyId -> base64 public key. Only entries validly signed by a registered vendor key are appended.
  *  Single-writer: this process owns the tree (appends are serialised here and the in-memory tree must match the store). */
-export function createApp(store: LogStore, id: LogIdentity, vendorKeys: Record<string, string>) {
+export function createApp(store: LogStore, id: LogIdentity, vendorKeys: Record<string, string>, witnessKeys: Record<string, string> = {}, now: () => number = Date.now) {
   const app = new Hono();
+  app.use(cors()); // the dashboard's /verify runs the client checks in the browser; every route here is public, read-only data except the signed POSTs
   app.onError((e, c) => e instanceof Tampered ? c.json({ error: e.message }, 500) : c.json({ error: "internal" }, 500));
 
   /** Every read re-derives each leaf hash from its stored entry, so editing only the entry (or only the hash) in storage is detected, not served.
@@ -43,6 +45,24 @@ export function createApp(store: LogStore, id: LogIdentity, vendorKeys: Record<s
       const sth = signHead(id, t.size, t.root());
       await store.saveSth(sth);
       return c.json({ ...leaf, sth, inclusion: { leafIndex: leaf.idx, treeSize: t.size, path } }, 201);
+    });
+  });
+  /** A witness attaches its cosignature to a head. Only registered witnesses, only valid signatures, newest per witness wins.
+   *  Runs through the same queue as appends so concurrent cosigs from three witnesses cannot overwrite each other. */
+  app.post("/sth/:size/cosigs", async (c) => {
+    const size = Number(c.req.param("size")), p = Cosig.safeParse(await c.req.json().catch(() => null));
+    if (!p.success) return c.json({ error: p.error.issues }, 400);
+    const cs = p.data, pub = Object.hasOwn(witnessKeys, cs.witnessId) ? witnessKeys[cs.witnessId] : undefined, t = Date.parse(cs.timestamp);
+    if (!pub) return c.json({ error: "unknown witness" }, 403);
+    if (!Number.isFinite(t) || t - now() > 5 * 60 * 1000) return c.json({ error: "cosig timestamp invalid or too far in the future" }, 400);
+    return serial(async () => {
+      const h = await store.sthAt(size);
+      if (!h) return c.json({ error: "no such head" }, 404);
+      if (!verifyCosig(h, cs, pub)) return c.json({ error: "cosig does not verify for this head" }, 403);
+      const old = h.cosigs.find((x) => x.witnessId === cs.witnessId);
+      if (old && Date.parse(old.timestamp) >= t) return c.json({ ok: true, kept: "newer cosig already stored" });
+      await store.setCosigs(size, [...h.cosigs.filter((x) => x.witnessId !== cs.witnessId), cs]);
+      return c.json({ ok: true }, 201);
     });
   });
   app.get("/entries", async (c) => c.json(await leaves()));
