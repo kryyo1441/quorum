@@ -108,6 +108,13 @@ table.sb{width:100%;border-collapse:separate;border-spacing:0 .45rem;font-size:c
 @keyframes shake{20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
 .slide.active .shake{animation:shake .5s 1.8s}
 
+
+.bars{display:grid;gap:1.1rem}
+.brow{display:grid;grid-template-columns:6.5rem 1fr 7.5rem;gap:1rem;align-items:center;font-size:clamp(.95rem,1.3vw,1.2rem)}
+.brow .bar{height:1.5rem;border-radius:.5rem;background:linear-gradient(90deg,var(--lav2),var(--lav3));width:0;min-width:3px;transition:width 1.4s cubic-bezier(.2,.8,.2,1) calc(var(--d,0)*1ms + 900ms)}
+.slide.active .brow .bar{width:var(--w)}
+.brow b{font-weight:500;text-align:right;font-variant-numeric:tabular-nums}
+
 /* ---------- animated logo (slide 1) ---------- */
 .hero-row{display:grid;grid-template-columns:1.2fr .8fr;align-items:center;gap:4vw}
 .logo-wrap{display:flex;flex-direction:column;align-items:center;gap:1.2rem}
@@ -403,17 +410,64 @@ table.sb{width:100%;border-collapse:separate;border-spacing:0 .45rem;font-size:c
   </div>
 </section>
 
-<!-- 14 · business -->
-<section class="slide" data-notes="<b>Say:</b> 'Who pays: desktop software vendors and agent or MCP tool vendors, for a verifiable updates badge their customers and auditors can check; and enterprises who want to monitor update integrity across a fleet. The moat is the witness network: the more independent witnesses and verifying clients, the harder a split view is to hide. We are not quoting market-size numbers. We cite incidents instead.'">
-  <div class="eyebrow reveal" style="--d:0">Business</div>
-  <h2 class="title reveal" style="--d:1;font-size:clamp(1.8rem,3.6vw,3.2rem)">The product is the <em class="grad">witness network.</em></h2>
-  <div class="grid cols4" style="margin-top:3.5vh;gap:1.2rem">
-    <div class="card reveal" style="--d:2"><div class="eyebrow" style="margin:0 0 .6rem">Who pays</div><p>Desktop and agent / MCP tool vendors (a “verifiable updates” badge). Enterprises monitoring fleet update integrity.</p></div>
-    <div class="card reveal" style="--d:3"><div class="eyebrow" style="margin:0 0 .6rem">Pricing (proposed)</div><p>Per app per month for SDK + hosted log + witnesses. Per endpoint for fleet monitoring. Self-hosted licence for regulated customers.</p></div>
-    <div class="card reveal" style="--d:4"><div class="eyebrow" style="margin:0 0 .6rem">Moat</div><p>More independent witnesses and more verifying clients make a split view harder to hide.</p></div>
-    <div class="card reveal" style="--d:5"><div class="eyebrow" style="margin:0 0 .6rem">Expansion</div><p>AI agent runtimes and MCP servers: privileged local access plus vendor-controlled auto-update.</p></div>
+<!-- 14 · why now / why they pay -->
+<section class="slide" data-notes="<b>Say:</b> 'Why would anyone pay for this? Three reasons, and they are all arriving right now. One: regulation. The EU Cyber Resilience Act's reporting duties went live on the eleventh of September this year, and the main obligations, including secure updates, apply from December 2027, with fines up to fifteen million euros or two and a half percent of worldwide turnover, according to law-firm summaries. Two: incidents. Four in eighteen months. Three: the market already pays for supply-chain trust. Chainguard reportedly reached around forty million dollars of annual recurring revenue selling trusted software supply chains. We are not claiming to be Chainguard. We are saying buyers exist for this pain.' <b>Say the CRA line as 'supports', never 'makes you compliant'.</b>">
+  <div class="eyebrow reveal" style="--d:0">Money · why now, why they pay</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(1.8rem,3.8vw,3.4rem)">Three forces are pushing vendors to <em class="grad">prove their updates.</em></h2>
+  <div class="grid cols3" style="margin-top:3.5vh;gap:1.4rem">
+    <div class="card reveal" style="--d:3"><div class="eyebrow" style="margin:0 0 .6rem">1 · Regulation</div>
+      <div class="stat" style="font-size:clamp(1.8rem,3.2vw,3rem)">11 Sep 2026</div><div class="stat-l">EU Cyber Resilience Act reporting duties in force</div>
+      <p class="muted" style="margin-top:.9rem;font-size:.95rem">Main obligations, including security updates, apply from <b style="color:var(--ink)">11 Dec 2027</b>. Fines up to <b style="color:var(--ink)">€15M or 2.5%</b> of worldwide turnover (law-firm summaries). A log of every release is evidence that supports this.</p></div>
+    <div class="card reveal" style="--d:4"><div class="eyebrow" style="margin:0 0 .6rem">2 · Incidents</div>
+      <div class="stat" style="font-size:clamp(1.8rem,3.2vw,3rem)"><span class="count" data-to="4">0</span> in <span class="count" data-to="18">0</span> mo</div><div class="stat-l">hijacked update channels (slide 3)</div>
+      <p class="muted" style="margin-top:.9rem;font-size:.95rem">Customers and auditors now ask vendors <i>how do I know your update is genuine?</i> Today the honest answer is “trust our server”.</p></div>
+    <div class="card reveal" style="--d:5"><div class="eyebrow" style="margin:0 0 .6rem">3 · Proof buyers exist</div>
+      <div class="stat" style="font-size:clamp(1.8rem,3.2vw,3rem)">~$<span class="count" data-to="40">0</span>M ARR</div><div class="stat-l">Chainguard, FY2025 (reported), selling supply-chain trust</div>
+      <p class="muted" style="margin-top:.9rem;font-size:.95rem">A different product, the same budget line: software supply-chain security. We are not claiming to be them.</p></div>
   </div>
-  <p class="sub reveal" style="--d:7">No market-size claims: we cite incidents instead.</p>
+  <div class="foot">Sources: European Commission and ENISA CRA pages; law-firm summaries (Skadden, Goodwin, Travers Smith) for fines, check Regulation Arts. 14 and 71; SecurityWeek and SiliconANGLE for Chainguard. “Supports” is not “guarantees compliance”.</div>
+</section>
+
+<!-- 15 · how we make money -->
+<section class="slide" data-notes="<b>Say:</b> 'Here is the honest part: the log format and the protocol should be open. That is how Certificate Transparency earned trust, and a closed transparency log is not trusted. So we do not charge for the idea. We charge for running it well. Three ways. One: vendors pay a monthly fee per app for a hosted log, a managed quorum of witnesses, the monitor and the SDK. Two: enterprises pay per endpoint to be told when any of their machines was offered a different file than everyone else. Three: regulated customers pay for a self-hosted licence with support. The prices are hypotheses we want to test with design partners.'">
+  <div class="eyebrow reveal" style="--d:0">Money · how we make it</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(1.8rem,3.8vw,3.4rem)">Open protocol. <em class="grad">Paid operations.</em></h2>
+  <div class="grid cols3" style="margin-top:3.5vh;gap:1.4rem">
+    <div class="card reveal" style="--d:3"><div class="eyebrow" style="margin:0 0 .6rem">Vendors · SaaS</div><b style="font-size:1.25rem">Hosted log + managed witness quorum</b>
+      <p class="muted" style="margin:.5rem 0 1rem;font-size:.95rem">SDK, <span class="mono">uw publish</span>, vendor monitor and alerting, audit export. The “verifiable updates” badge.</p><div class="pill ok">per app / month</div></div>
+    <div class="card reveal" style="--d:4"><div class="eyebrow" style="margin:0 0 .6rem">Enterprises · fleet</div><b style="font-size:1.25rem">“Someone got a different file” alerts</b>
+      <p class="muted" style="margin:.5rem 0 1rem;font-size:.95rem">Cross-client split-view detection for your machines, plus an evidence trail for auditors.</p><div class="pill ok">per endpoint / month</div></div>
+    <div class="card reveal" style="--d:5"><div class="eyebrow" style="margin:0 0 .6rem">Regulated · self-hosted</div><b style="font-size:1.25rem">Your log, your witnesses</b>
+      <p class="muted" style="margin:.5rem 0 1rem;font-size:.95rem">Private federation with support and SLAs, for customers who cannot send release data out.</p><div class="pill ok">annual licence</div></div>
+  </div>
+  <div class="grid cols3 reveal" style="--d:7;margin-top:1.6rem;gap:1.2rem;opacity:.95">
+    <div class="card" style="padding:1rem 1.4rem"><span class="pill">hypothesis</span> <b>Starter</b> · 1 app · a few hundred clients</div>
+    <div class="card" style="padding:1rem 1.4rem"><span class="pill">hypothesis</span> <b>Business</b> · many apps · SLA · compliance export</div>
+    <div class="card" style="padding:1rem 1.4rem"><span class="pill">hypothesis</span> <b>Enterprise</b> · self-hosted · private witnesses</div>
+  </div>
+  <div class="foot">Prices are deliberately not shown: they are hypotheses to validate with design partners, not facts.</div>
+</section>
+
+<!-- 16 · arithmetic + what we must prove -->
+<section class="slide" data-notes="<b>Say:</b> 'To be concrete about the shape of the business, here is simple arithmetic, clearly illustrative, not a forecast. At one price point of about five hundred dollars per app per month, fifty apps is roughly three hundred thousand dollars a year, two hundred apps is about one point two million, a thousand apps is about six million. The point is not the numbers: the infrastructure is cheap, because we measured about five hundred log appends a second in-process on a laptop, so margins should be high. The point is what we still have to prove, and we say it out loud: that vendors integrate the SDK, that independent witnesses join the network, and that someone actually pays. We have no customers yet.'">
+  <div class="eyebrow reveal" style="--d:0">Money · the shape of it, and what we still must prove</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(1.8rem,3.8vw,3.4rem)">Cheap to run. <em class="grad">Unproven to sell.</em></h2>
+  <div class="grid cols2" style="margin-top:3vh;gap:2rem;align-items:center">
+    <div class="reveal" style="--d:2">
+      <div class="muted" style="font-size:.85rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:1rem">Illustrative arithmetic, one price point of $499 / app / month</div>
+      <div class="bars">
+        <div class="brow"><span>50 apps</span><div class="bar" style="--w:5%"></div><b>~$0.3M / yr</b></div>
+        <div class="brow"><span>200 apps</span><div class="bar" style="--w:20%"></div><b>~$1.2M / yr</b></div>
+        <div class="brow"><span>1,000 apps</span><div class="bar" style="--w:100%"></div><b>~$6.0M / yr</b></div>
+      </div>
+      <p class="muted" style="margin-top:1rem;font-size:.9rem">Not a forecast. Servers are small: about 500 log appends per second measured in-process on one machine, so gross margin should be high (a hypothesis).</p>
+    </div>
+    <div class="grid reveal" style="--d:4;gap:1rem">
+      <div class="card"><span class="pill bad">to prove</span> <b>Vendors will integrate the SDK.</b><p class="muted" style="margin-top:.3rem">It is one function call; we need time-to-integrate from real apps.</p></div>
+      <div class="card"><span class="pill bad">to prove</span> <b>Independent witnesses will join.</b><p class="muted" style="margin-top:.3rem">The moat is the network, and today all three witnesses are ours.</p></div>
+      <div class="card"><span class="pill bad">to prove</span> <b>Someone pays.</b><p class="muted" style="margin-top:.3rem">No customers or revenue yet: the next step is design partners.</p></div>
+    </div>
+  </div>
 </section>
 
 <!-- 15 · prior art -->
