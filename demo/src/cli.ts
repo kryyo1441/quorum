@@ -1,10 +1,14 @@
-import { attack1, clientIds, reset, runFleet, seed, witnessUrls } from "./fleet.js";
+import { APP, PLATFORM, attack1, clientIds, reset, runFleet, seed, witnessUrls } from "./fleet.js";
 import { envFromProcess } from "./env.js";
 
 const env = envFromProcess();
 const [cmd, arg] = process.argv.slice(2);
 
-if (cmd === "seed") console.log("published and cosigned", (await seed(env)).sha256);
+if (cmd === "seed") {
+  // idempotent: `docker compose up` runs this every time
+  if ((await fetch(`${env.updateUrl}/latest/${APP}/${PLATFORM}`).catch(() => undefined))?.ok) console.log("already published");
+  else console.log("published and cosigned", (await seed(env)).sha256);
+}
 else if (cmd === "reset") { await reset(env); console.log("attacks cleared"); }
 else if (cmd === "attack1") { const id = arg ?? "c7"; await attack1(env, id); console.log(`update server now serves ${id} a tampered binary`); }
 else if (cmd === "fleet") {
