@@ -160,3 +160,14 @@ test("prototype-ish vendor key ids and a proof response's own treeSize/leafHash 
   const lying = { ...v.inclusion[3], treeSize: 999, leafHash: "f".repeat(64) };
   expect(await run(3, cfg(), world({ proofOverride: lying }))).toMatchObject({ ok: true });
 });
+
+test("the log-signed head this client was shown is forwarded to every witness (cross-client split-view evidence); a forged head is not", async () => {
+  const posted: { host: string; body: any }[] = [], d = world(), inner = d.fetch;
+  d.fetch = (async (input: any, init?: RequestInit) => { const u = new URL(String(input)); if (u.pathname === "/gossip") { posted.push({ host: u.host, body: JSON.parse(String(init?.body)) }); return new Response("{}"); } return inner(input, init); }) as typeof fetch;
+  await run(3, cfg(), d);
+  expect(posted.map((p) => p.host).sort()).toEqual(["w1", "w2", "w3"]);
+  expect(posted[0].body.rootHash).toBe(v.sth.rootHash);
+  posted.length = 0;
+  await run(3, cfg(), (() => { const x = world({ sth: { ...v.sth, logSig: "AAAA" } }); const f = x.fetch; x.fetch = (async (i: any, n?: RequestInit) => { if (new URL(String(i)).pathname === "/gossip") posted.push({ host: "x", body: null }); return f(i, n); }) as typeof fetch; return x; })());
+  expect(posted).toHaveLength(0);
+});
