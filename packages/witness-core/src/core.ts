@@ -32,6 +32,8 @@ export class WitnessCore {
   constructor(readonly cfg: WitnessConfig, private readonly d: WitnessDeps) {}
 
   head(): STH | undefined { return this.lastCosigned; }
+  /** Demo reset: forget alerts and the observation index. Keeps the verified head history, so a fork can still be detected afterwards. */
+  reset() { this.all.length = 0; this.forks.clear(); this.obs.clear(); }
   private alert(kind: SplitViewAlert["kind"], rel: { app: string; version: string; platform: string }, evidence: Record<string, unknown>): SplitViewAlert {
     const a: SplitViewAlert = { kind, ...rel, evidence, raisedBy: this.cfg.id, raisedAt: this.d.now().toISOString() };
     this.all.push(a);
