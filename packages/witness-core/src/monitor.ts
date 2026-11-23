@@ -19,6 +19,9 @@ export class Monitor {
   readonly alerts: SplitViewAlert[] = [];
   constructor(private readonly cfg: MonitorConfig, private readonly d: MonitorDeps) {}
 
+  /** Demo reset: clear alerts (they re-raise if the cause is still there). Keeps first-seen leaf hashes. */
+  reset() { this.alerts.length = 0; this.raised.clear(); }
+
   /** Approving a release withdraws any UNAPPROVED_RELEASE alert raised for it (a late approval by the vendor is not an attack). */
   approve(r: Approved) {
     this.approved.add(`${r.app}\0${r.version}\0${r.platform}\0${r.sha256}`);
