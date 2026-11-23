@@ -63,6 +63,7 @@ svg .t-mute{fill:var(--mute)} svg .t-mono{font-family:var(--mono)}
 
 /* ---------- slide-specific ---------- */
 .hero .title{font-size:clamp(3rem,9vw,8.5rem);line-height:.98}
+.hero-row .title{font-size:clamp(2.8rem,6.6vw,6.6rem)}
 .big-q{font-family:var(--serif);font-size:clamp(2rem,5vw,4.6rem);line-height:1.1;max-width:20ch}
 .timeline{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;margin-top:4vh}
 .timeline:before{content:"";position:absolute;left:0;right:0;top:.55rem;height:2px;background:linear-gradient(90deg,var(--lav3),var(--bad));opacity:.5}
@@ -106,6 +107,33 @@ table.sb{width:100%;border-collapse:separate;border-spacing:0 .45rem;font-size:c
 .slide.active .blink{animation:pulse 1.6s infinite}
 @keyframes shake{20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
 .slide.active .shake{animation:shake .5s 1.8s}
+
+/* ---------- animated logo (slide 1) ---------- */
+.hero-row{display:grid;grid-template-columns:1.2fr .8fr;align-items:center;gap:4vw}
+.logo-wrap{display:flex;flex-direction:column;align-items:center;gap:1.2rem}
+.logo{width:min(34vw,62vh);overflow:visible;filter:drop-shadow(0 0 40px rgba(143,116,230,.35))}
+.logo-cap{display:flex;gap:1.4rem;font-size:clamp(.8rem,1.1vw,1rem);letter-spacing:.18em;text-transform:uppercase;color:var(--lav);opacity:0;transition:opacity .8s 2.6s}
+.logo-cap .dim{color:var(--mute)}
+.slide.active .logo-cap{opacity:1}
+.lg-a,.lg-b,.lg-lens,.lg-glow,.lg-c,.lg-tick,.lg-ring{transform-box:fill-box;transform-origin:center}
+.slide:not(.active) .lg-a{transform:translateX(-70px);opacity:0}
+.slide:not(.active) .lg-b{transform:translateX(70px);opacity:0}
+.slide:not(.active) .lg-lens,.slide:not(.active) .lg-glow,.slide:not(.active) .lg-c{opacity:0}
+.slide:not(.active) .lg-tick{stroke-dashoffset:60}
+.lg-a,.lg-b{transition:transform 1.1s cubic-bezier(.2,.8,.2,1) .35s,opacity .8s .35s}
+.lg-lens{transition:opacity .8s 1.3s}.lg-glow{transition:opacity 1.4s 1s}.lg-c{transition:opacity .8s 1.6s}
+.lg-tick{stroke-dasharray:60;stroke-dashoffset:0;transition:stroke-dashoffset .8s ease 2.9s;opacity:.0}
+.slide.active .lg-tick{opacity:1}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ringOut{0%{transform:scale(.6);opacity:.7}100%{transform:scale(2.6);opacity:0}}
+@keyframes lensPulse{0%,100%{fill-opacity:.45}50%{fill-opacity:.85}}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.slide.active .lg-spin{transform-origin:140px 192px;animation:spin 18s linear 2s infinite}
+.slide.active .lg-ring.r1{animation:ringOut 3.4s ease-out 1.9s infinite}
+.slide.active .lg-ring.r2{animation:ringOut 3.4s ease-out 3.6s infinite}
+.slide.active .lg-lens{animation:lensPulse 3.4s ease-in-out 2s infinite}
+.slide.active .logo{animation:floaty 7s ease-in-out 2s infinite}
+@media (max-width:900px){.hero-row{grid-template-columns:1fr}.logo{width:min(60vw,40vh)}}
 @media (max-width:900px){.cols2,.cols3,.cols4,.timeline{grid-template-columns:1fr}.slide{padding:8vh 6vw 10vh;overflow:auto;justify-content:flex-start}.timeline:before{display:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}.reveal,.fade,.pop,.sb tr{opacity:1!important;transform:none!important}.draw{stroke-dashoffset:0!important}}
 </style>
@@ -121,10 +149,37 @@ table.sb{width:100%;border-collapse:separate;border-spacing:0 .45rem;font-size:c
 <main id="deck">
 
 <!-- 1 · title -->
-<section class="slide hero" data-notes="<b>Open with silence, then the question.</b> Don't say the name yet. Let the first slide sit for two seconds, then move on.">
-  <div class="eyebrow reveal" style="--d:0">Open Innovation track</div>
-  <h1 class="title reveal" style="--d:1">Trust the log,<br><em class="grad">not the server.</em></h1>
-  <p class="sub reveal" style="--d:2">Quorum: a software update installs only if a quorum of independent witnesses has seen the exact same file.</p>
+<section class="slide hero" data-notes="<b>Open with silence, then the question.</b> Don't say the name yet. Let the first slide sit for two seconds, then move on. The logo is the idea: two witnesses agree (the bright overlap), the third is still to come (the dashed circle). That agreement is the quorum.">
+  <div class="hero-row">
+    <div>
+      <div class="eyebrow reveal" style="--d:0">Open Innovation track</div>
+      <h1 class="title reveal" style="--d:1">Trust the log,<br><em class="grad">not the server.</em></h1>
+      <p class="sub reveal" style="--d:2">Quorum: a software update installs only if a quorum of independent witnesses has seen the exact same file.</p>
+    </div>
+    <div class="logo-wrap" aria-label="Quorum logo: two witnesses agree, a third is pending">
+      <svg viewBox="0 0 280 280" class="logo">
+        <defs>
+          <linearGradient id="gA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#efe6ff"/><stop offset="1" stop-color="#a68df0"/></linearGradient>
+          <linearGradient id="gB" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9c7ff"/><stop offset="1" stop-color="#7d62df"/></linearGradient>
+          <radialGradient id="gGlow"><stop offset="0" stop-color="#b9a2f2" stop-opacity=".55"/><stop offset="1" stop-color="#b9a2f2" stop-opacity="0"/></radialGradient>
+          <clipPath id="cpA"><circle cx="104" cy="110" r="62"/></clipPath>
+          <filter id="soft"><feGaussianBlur stdDeviation="6"/></filter>
+        </defs>
+        <circle class="lg-glow" cx="140" cy="135" r="135" fill="url(#gGlow)"/>
+        <!-- pulse rings sent out when the two agree -->
+        <circle class="lg-ring r1" cx="140" cy="110" r="40" fill="none" stroke="#e0d2ff" stroke-width="2"/>
+        <circle class="lg-ring r2" cx="140" cy="110" r="40" fill="none" stroke="#b9a2f2" stroke-width="2"/>
+        <circle class="lg-a" cx="104" cy="110" r="62" fill="url(#gA)" fill-opacity=".92"/>
+        <circle class="lg-b" cx="176" cy="110" r="62" fill="url(#gB)" fill-opacity=".9"/>
+        <!-- the overlap = agreement -->
+        <circle class="lg-lens" cx="176" cy="110" r="62" fill="#fff" fill-opacity=".55" clip-path="url(#cpA)"/>
+        <!-- the third witness: not yet -->
+        <g class="lg-spin"><circle class="lg-c" cx="140" cy="192" r="62" fill="none" stroke="url(#gA)" stroke-width="4" stroke-dasharray="10 12" stroke-linecap="round" pathLength="100"/></g>
+        <path class="lg-tick" d="M123 112 L135 126 L158 94" fill="none" stroke="#17805a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="logo-cap"><span>2 agree</span><span class="dim">1 pending</span></div>
+    </div>
+  </div>
 </section>
 
 <!-- 2 · question -->
