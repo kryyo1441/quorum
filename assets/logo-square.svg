@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Quorum">
+  <defs>
+    <linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f1e9ff"/><stop offset="1" stop-color="#a68df0"/></linearGradient>
+    <linearGradient id="b" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9c7ff"/><stop offset="1" stop-color="#7d62df"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="46%" r="55%"><stop offset="0" stop-color="#8f74e6" stop-opacity=".42"/><stop offset="1" stop-color="#8f74e6" stop-opacity="0"/></radialGradient>
+    <clipPath id="ca"><circle cx="190" cy="214" r="112"/></clipPath>
+  </defs>
+  <rect width="512" height="512" fill="#0b0a10"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <circle cx="190" cy="214" r="112" fill="url(#a)" fill-opacity=".95"/>
+  <circle cx="322" cy="214" r="112" fill="url(#b)" fill-opacity=".92"/>
+  <circle cx="322" cy="214" r="112" fill="#fff" fill-opacity=".5" clip-path="url(#ca)"/>
+  <circle cx="256" cy="342" r="112" fill="none" stroke="url(#a)" stroke-width="8" stroke-dasharray="22 24" stroke-linecap="round"/>
+  <path d="M224 222 L248 248 L292 188" fill="none" stroke="#17805a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
