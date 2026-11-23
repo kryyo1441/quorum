@@ -10,6 +10,7 @@ export interface LogStore {
   sthAt(size: number): Promise<STH | undefined>;
   allSths(): Promise<STH[]>;          // ascending by treeSize, one query
   latestSth(): Promise<STH | undefined>;
+  setCosigs(size: number, cosigs: STH["cosigs"]): Promise<void>; // replaces the cosig list of one head (callers serialise the read-modify-write)
 }
 
 export function memoryStore(): LogStore {
@@ -20,6 +21,7 @@ export function memoryStore(): LogStore {
     saveSth: async (s) => { if (!heads.has(s.treeSize)) heads.set(s.treeSize, s); },
     sthAt: async (n) => heads.get(n),
     allSths: async () => [...heads.values()].sort((a, b) => a.treeSize - b.treeSize),
+    setCosigs: async (n, cosigs) => { const h = heads.get(n); if (h) heads.set(n, { ...h, cosigs }); },
     latestSth: async () => [...heads.values()].reduce<STH | undefined>((m, h) => (!m || h.treeSize > m.treeSize ? h : m), undefined),
   };
 }
