@@ -10,10 +10,11 @@ export type Env = {
   vendor: { keyId: string; secretKey: string };
   verify: Omit<VerifyConfig, "expected">;             // what every client trusts: log key, witness keys, vendor keys, k
   fetch: Fetch; now?: () => number;
+  logFor?: (clientId: string) => string | undefined;   // attack 5: the log THIS client is shown (a malicious operator's fork)
   settle?: () => Promise<void>;                       // in-process worlds: let witnesses/monitor run a cycle (a live stack does this on its own timers)
 };
 export type ClientResult = {
-  id: string; state: "verified" | "blocked"; reason?: FailReason; detail?: string; sha256: string;
+  id: string; version: string; state: "verified" | "blocked"; reason?: FailReason; detail?: string; sha256: string;
   checks: Check[]; ms: number; hashMs: number; networkMs: number; bytes: number; // §15: latency split into hashing vs network+crypto, and proof+head bytes
 };
 
@@ -64,17 +65,17 @@ export async function waitCosigned(e: Env, size: number, ms = 15000) {
 }
 
 /** Compromised update server: serve `clientId` a different binary under the same manifest (attack 1). */
-export const attackWith = (e: Env, clientId: string, binary: Uint8Array) =>
-  e.fetch(`${e.updateUrl}/admin/target`, { method: "POST", body: JSON.stringify({ clientId, binary: Buffer.from(binary).toString("base64") }) });
+export const attackWith = (e: Env, clientId: string, binary: Uint8Array, manifest?: ReleaseEntry) =>
+  e.fetch(`${e.updateUrl}/admin/target`, { method: "POST", body: JSON.stringify({ clientId, binary: Buffer.from(binary).toString("base64"), manifest }) });
 export const attack1 = (e: Env, clientId: string) => attackWith(e, clientId, EVIL);
 export const reset = (e: Env) => e.fetch(`${e.updateUrl}/admin/reset`, { method: "POST" });
 
 /** One installed client: fetch manifest + binary from the update server, run ALL of §7.2 (verifyUpdate's checks), report what it saw to every witness. */
 export async function runClient(e: Env, id: string): Promise<ClientResult> {
   const t0 = performance.now(), m = meter(e.fetch), now = e.now ?? Date.now;
-  const manifest = (await (await e.fetch(`${e.updateUrl}/latest/${APP}/${PLATFORM}`)).json()) as ReleaseEntry;
+  const manifest = (await (await e.fetch(`${e.updateUrl}/latest/${APP}/${PLATFORM}?client=${id}`)).json()) as ReleaseEntry;
   const bin = new Uint8Array(await (await e.fetch(`${manifest.url}?client=${id}`)).arrayBuffer());
-  const cfg: VerifyConfig = { ...e.verify, expected: { app: APP, platform: PLATFORM, installedVersion: INSTALLED } };
+  const cfg: VerifyConfig = { ...e.verify, logUrl: e.logFor?.(id) ?? e.verify.logUrl, expected: { app: APP, platform: PLATFORM, installedVersion: INSTALLED } };
   const h0 = performance.now(); sha256(bin); const hashMs = performance.now() - h0; // the hash is recomputed inside checkUpdate; this isolates its cost
   const { checks, sth } = await checkUpdate(bin, manifest, cfg, { fetch: m.fetch, now });
   const verdict = verdictOf(checks, manifest, sth);
@@ -82,7 +83,7 @@ export async function runClient(e: Env, id: string): Promise<ClientResult> {
   const obs: Observation = { app: manifest.app, version: manifest.version, platform: manifest.platform, sha256: seen, sthRoot: sth?.rootHash ?? "", sthSize: sth?.treeSize ?? 0,
     clientPseudonym: createHash("sha256").update(`secret-${id}`).update(manifest.app).digest("hex"), observedAt: new Date(now()).toISOString() };
   await reportObservation(obs, cfg, { fetch: e.fetch, now }).catch(() => {});
-  return { id, state: verdict.ok ? "verified" : "blocked", reason: verdict.ok ? undefined : verdict.reason, detail: verdict.ok ? undefined : verdict.detail,
+  return { id, version: manifest.version, state: verdict.ok ? "verified" : "blocked", reason: verdict.ok ? undefined : verdict.reason, detail: verdict.ok ? undefined : verdict.detail,
     sha256: seen, checks, ms, hashMs, networkMs: ms - hashMs, bytes: m.bytes() };
 }
 export const runFleet = (e: Env, n = 12) => Promise.all(clientIds(n).map((id) => runClient(e, id)));
