@@ -2,7 +2,7 @@ import { Clock3, ShieldCheck } from "lucide-react";
 import { Badge, Card, Title } from "@/components/ui";
 import { Merkle } from "@/components/merkle";
 import { getHeads, getLeaves, getLogKey } from "@/lib/api";
-import { short } from "@/lib/mock";
+import { short } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 const WITNESSES = ["w1", "w2", "w3"];

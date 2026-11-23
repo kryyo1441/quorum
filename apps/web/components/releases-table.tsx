@@ -1,23 +1,23 @@
 "use client";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Laptop, Monitor, Plus, ShieldAlert, ShieldCheck, Terminal } from "lucide-react";
 import { Badge, Card } from "./ui";
-import { platforms, short, type Release } from "@/lib/mock";
-import { publishRelease } from "@/app/releases/actions";
+import { platforms, short, type Release } from "@/lib/format";
+import { approveRelease, publishRelease } from "@/app/releases/actions";
 
 const Icon = { "win-x64": Monitor, "mac-arm64": Laptop, "linux-x64": Terminal } as const;
 
-export function ReleasesTable({ rows: logged }: { rows: Omit<Release, "approved">[] }) {
-  // ponytail: approved list is local UI state; persisted list arrives with the vendor monitor.
-  const [off, setOff] = useState<Set<number>>(new Set());
-  const rows: Release[] = logged.map((r) => ({ ...r, approved: !off.has(r.idx) }));
+export function ReleasesTable({ rows: logged, unapproved: flagged }: { rows: Omit<Release, "approved">[]; unapproved: number[] | null }) {
+  // approval is the vendor monitor's list (SPEC §9); `flagged` null means the monitor is unreachable
+  const rows: Release[] = logged.map((r) => ({ ...r, approved: !flagged?.includes(r.idx) }));
   const dlg = useRef<HTMLDialogElement>(null);
-  const unapproved = rows.filter((r) => !r.approved);
+  const unapproved = flagged === null ? [] : rows.filter((r) => !r.approved);
 
   const publish = async (f: FormData) => { await publishRelease(f); dlg.current?.close(); };
 
   return (
     <>
+      {flagged === null && <div className="mb-6 rounded-3xl border border-line p-5 text-lg text-mute">The vendor monitor is unreachable, so approval status is unknown.</div>}
       {unapproved.length > 0 && (
         <div className="animate-rise mb-6 flex flex-wrap items-center gap-4 rounded-3xl border border-bad/50 bg-bad/10 p-6 text-lg text-bad">
           <ShieldAlert className="size-7 animate-pulse" />
@@ -43,9 +43,9 @@ export function ReleasesTable({ rows: logged }: { rows: Omit<Release, "approved"
                   <td className="px-6 py-5 font-mono text-mute" title={r.sha256}>{short(r.sha256)}</td>
                   <td className="px-6 py-5 font-mono">#{r.idx}</td>
                   <td className="px-6 py-5">
-                    <button onClick={() => setOff((s) => { const n = new Set(s); n.has(r.idx) ? n.delete(r.idx) : n.add(r.idx); return n; })} aria-label="toggle approved">
-                      {r.approved ? <Badge tone="ok"><ShieldCheck className="size-4" />approved</Badge> : <Badge tone="bad"><ShieldAlert className="size-4" />unapproved</Badge>}
-                    </button>
+                    {flagged === null ? <Badge tone="mute">monitor offline</Badge>
+                      : r.approved ? <Badge tone="ok"><ShieldCheck className="size-4" />approved</Badge>
+                      : <button onClick={() => void approveRelease(r.idx)} title="approve this release" aria-label="approve"><Badge tone="bad"><ShieldAlert className="size-4" />unapproved: click to approve</Badge></button>}
                   </td>
                 </tr>); })}
             </tbody>

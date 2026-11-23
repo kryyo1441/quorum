@@ -5,7 +5,7 @@ import { hashChildren, leafHashOfEntry, verifyInclusion, verifyLogSig } from "@u
 import type { ReleaseEntry, STH } from "@uw/shared";
 import { Badge, Card } from "./ui";
 import { fetchProof } from "@/app/log/actions";
-import { short } from "@/lib/mock";
+import { short } from "@/lib/format";
 
 type Leaf = { idx: number; entry: ReleaseEntry; leafHash: string };
 type Node = { lo: number; hi: number; height: number; hash: string; left?: Node; right?: Node; x: number };
