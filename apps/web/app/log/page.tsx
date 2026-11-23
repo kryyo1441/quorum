@@ -1,6 +1,7 @@
 import { Clock3, ShieldCheck } from "lucide-react";
 import { Badge, Card, Title } from "@/components/ui";
 import { Merkle } from "@/components/merkle";
+import { GrowthChart } from "@/components/growth-chart";
 import { getHeads, getLeaves, getLogKey } from "@/lib/api";
 import { short } from "@/lib/format";
 
@@ -17,7 +18,9 @@ export default async function Log() {
     <>
       <Title sub={sub}>Log explorer</Title>
       <Merkle leaves={leaves} head={latest} logKey={key} />
-      <h2 className="mb-5 mt-14 text-3xl font-medium">Signed tree heads</h2>
+      <h2 className="mb-5 mt-14 text-3xl">Tree size over time</h2>
+      <Card><GrowthChart heads={heads} /></Card>
+      <h2 className="mb-5 mt-14 text-3xl">Signed tree heads</h2>
       <div className="grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))]">
         {[...heads].reverse().map((s, i) => (
           <Card key={s.treeSize} delay={i * 60}>
