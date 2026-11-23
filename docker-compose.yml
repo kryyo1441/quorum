@@ -69,7 +69,7 @@ services:
   demo:
     <<: *node
     build: { context: ., args: { PKG: "@uw/demo" } }
-    environment:
+    environment: &demoenv
       PORT: 4200
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       # the demo server PLAYS THE ATTACKER (stolen vendor key, malicious log operator, database access) for attacks 4, 5 and 9
@@ -86,6 +86,16 @@ services:
       VENDOR_SECRET_KEY: ${VENDOR_SECRET_KEY:?run `pnpm env:init` first}
       VENDOR_PUBLIC_KEYS: ${VENDOR_PUBLIC_KEYS:?run `pnpm env:init` first}
     ports: ["4200:4200"]
+    depends_on: [log-server, update-server, witness-1, witness-2, witness-3, monitor]
+
+  # One-shot: publishes notepad-minus 2.1.0 (log + update server + monitor approval) and waits until two witnesses cosigned it,
+  # so the dashboard has something to show right after `docker compose up`.
+  seed:
+    <<: *node
+    build: { context: ., args: { PKG: "@uw/demo" } }
+    restart: "no"
+    command: pnpm --filter @uw/demo seed
+    environment: *demoenv
     depends_on: [log-server, update-server, witness-1, witness-2, witness-3, monitor]
 
   web:
