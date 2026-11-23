@@ -34,17 +34,27 @@ const LABELS: Record<CheckId, string> = {
   cosigs: "Head has enough valid witness cosignatures", fresh: "Enough cosignatures are fresh", noSplitView: "No open split-view alert",
 };
 
-// ---- version comparison (semver core numeric; any prerelease sorts below its release) ----
-const SEMVER = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
-/** <0, 0, >0, or undefined when either side is not a semver. ponytail: prereleases compare as plain strings, not per-identifier. */
+// ---- version comparison: SemVer 2.0.0 precedence ----
+const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+/** <0, 0, >0, or undefined when either side is not valid SemVer (the caller then fails closed). Numbers are compared as BigInt, so huge components cannot become NaN.
+ *  Prerelease identifiers compare per SemVer 2.0.0 §11: numeric ones numerically, numeric < alphanumeric, a shorter set sorts below a longer one it prefixes. */
 export function compareVersions(a: string, b: string): number | undefined {
   const x = SEMVER.exec(a), y = SEMVER.exec(b);
   if (!x || !y) return undefined;
-  for (let i = 1; i <= 3; i++) { const d = Number(x[i]) - Number(y[i]); if (d !== 0) return d; }
+  for (let i = 1; i <= 3; i++) { const d = BigInt(x[i]) - BigInt(y[i]); if (d !== 0n) return d < 0n ? -1 : 1; }
   if (x[4] === y[4]) return 0;
   if (x[4] === undefined) return 1;
   if (y[4] === undefined) return -1;
-  return x[4] < y[4] ? -1 : 1;
+  const p = x[4].split("."), q = y[4].split(".");
+  for (let i = 0; i < Math.max(p.length, q.length); i++) {
+    if (p[i] === undefined) return -1;
+    if (q[i] === undefined) return 1;
+    const pn = /^\d+$/.test(p[i]), qn = /^\d+$/.test(q[i]);
+    if (pn && qn) { const d = BigInt(p[i]) - BigInt(q[i]); if (d !== 0n) return d < 0n ? -1 : 1; }
+    else if (pn !== qn) return pn ? -1 : 1;
+    else if (p[i] !== q[i]) return p[i] < q[i] ? -1 : 1;
+  }
+  return 0;
 }
 
 const WELL_FORMED = (s: string) => !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(s); // no lone surrogates

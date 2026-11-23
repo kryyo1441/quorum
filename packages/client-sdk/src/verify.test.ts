@@ -171,3 +171,12 @@ test("the log-signed head this client was shown is forwarded to every witness (c
   await run(3, cfg(), (() => { const x = world({ sth: { ...v.sth, logSig: "AAAA" } }); const f = x.fetch; x.fetch = (async (i: any, n?: RequestInit) => { if (new URL(String(i)).pathname === "/gossip") posted.push({ host: "x", body: null }); return f(i, n); }) as typeof fetch; return x; })());
   expect(posted).toHaveLength(0);
 });
+
+test("version precedence follows SemVer 2.0.0, including numeric prerelease identifiers and huge numbers", () => {
+  const order = ["1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-beta", "1.0.0-beta.2", "1.0.0-beta.11", "1.0.0-rc.1", "1.0.0"]; // the SemVer spec's own example
+  for (let i = 0; i < order.length - 1; i++) { expect(compareVersions(order[i], order[i + 1]), `${order[i]} < ${order[i + 1]}`).toBeLessThan(0); expect(compareVersions(order[i + 1], order[i])).toBeGreaterThan(0); }
+  expect(compareVersions("1.0.0-beta.10", "1.0.0-beta.2")).toBeGreaterThan(0);          // the reported downgrade: beta.2 is OLDER than beta.10
+  expect(compareVersions("1.0.0+build1", "1.0.0+build2")).toBe(0);
+  expect(compareVersions("99999999999999999999999.0.0", "1.0.0")).toBeGreaterThan(0);   // no NaN
+  for (const bad of ["1.0", "01.0.0", "1.0.0-", "1.0.0-01", "v1.0.0", ""]) expect(compareVersions(bad, "1.0.0")).toBeUndefined();
+});
