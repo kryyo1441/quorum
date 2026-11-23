@@ -1,3 +1,4 @@
+<p align="center"><img src="assets/logo.svg" alt="Quorum logo" width="120"></p>
 <h1 align="center">Quorum</h1>
 
 <p align="center"><b>A software update installs only if a quorum of independent witnesses has seen the exact same file.</b><br>
