@@ -186,6 +186,40 @@ importers:
         specifier: ^3
         version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
 
+  services/monitor:
+    dependencies:
+      '@hono/node-server':
+        specifier: ^1
+        version: 1.19.19(hono@4.13.20)
+      '@uw/log-core':
+        specifier: workspace:*
+        version: link:../../packages/log-core
+      '@uw/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@uw/witness-core':
+        specifier: workspace:*
+        version: link:../../packages/witness-core
+      hono:
+        specifier: ^4
+        version: 4.13.20
+      zod:
+        specifier: ^3
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22
+        version: 22.20.5
+      tsx:
+        specifier: ^4
+        version: 4.23.15
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^3
+        version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
+
   services/update-server:
     dependencies:
       '@hono/node-server':
