@@ -70,7 +70,7 @@ export const SCENARIOS: { n: number; name: string; attack: string; expected: str
       const evilEntry = makeEntry(w.env, EVIL, "2.2.0"), t0 = performance.now();
       await w.fetch(`${w.env.updateUrl}/admin/release`, { method: "POST", body: JSON.stringify({ entry: evilEntry, binary: Buffer.from(EVIL).toString("base64") }) });
       const r = await post(w, `${w.env.logUrl}/entries`, evilEntry); // the log accepts it: the signature is valid
-      await w.settle(3);                                              // one witness/monitor cycle: witnesses cosign the head, the monitor polls
+      await w.settle(1);                                              // exactly ONE cycle: each witness polls and cosigns, the monitor polls once
       const alertMs = performance.now() - t0, alerts = w.monitor.alerts.filter((a) => a.kind === "UNAPPROVED_RELEASE" && a.version === "2.2.0");
       const client = await runClient(w.env, "c1");
       const tryApprove = await w.fetch(`${w.env.monitor!.url}/approved`, { method: "POST", body: JSON.stringify({ app: APP, version: "2.2.0", platform: PLATFORM, sha256: sha256(EVIL) }) }); // the release key is not the approval token
@@ -111,10 +111,15 @@ export const SCENARIOS: { n: number; name: string; attack: string; expected: str
       await post(w, `${fork.url}/entries`, evilEntry);
       const head = (await (await w.fetch(`${fork.url}/sth`)).json()) as STH;
       const bad = w.witnesses[2];
-      await post(w, `${fork.url}/sth/${head.treeSize}/cosigs`, cosign(head, bad.id, bad.secretKey, new Date(w.env.now!()).toISOString())); // w3's key signs the fork
+      const attach = await post(w, `${fork.url}/sth/${head.treeSize}/cosigs`, cosign(head, bad.id, bad.secretKey, new Date(w.env.now!()).toISOString())); // w3's key signs the fork
+      const forkHead = (await (await w.fetch(`${fork.url}/sth`)).json()) as STH;
       const k2 = await verdictFor(w, EVIL, evilEntry, { logUrl: fork.url });
       const k1 = await verdictFor(w, EVIL, evilEntry, { logUrl: fork.url, threshold: 1 });
-      return { naive: naive(w, EVIL, evilEntry) + " (witnesses do not exist)", actual: reasonOf(k2.verdict), pass: !k2.verdict.ok && k2.verdict.reason === "INSUFFICIENT_COSIGS", evidence: [`k=2: ${why(k2.verdict)}`, `control, k=1: ${k1.verdict.ok ? "ACCEPTED: with k=1 one bad witness WOULD be enough" : "blocked"}`] };
+      // The attack only counts if the forged cosig really is on the head and valid; otherwise "blocked" would prove nothing.
+      const cosigs = (c: { checks: { id: string; status: string }[] }) => c.checks.find((x) => x.id === "cosigs")!.status;
+      const one = attach.status === 201 && forkHead.cosigs.length === 1;
+      return { naive: naive(w, EVIL, evilEntry) + " (witnesses do not exist)", actual: reasonOf(k2.verdict), pass: one && !k2.verdict.ok && k2.verdict.reason === "INSUFFICIENT_COSIGS" && cosigs(k2) === "fail" && cosigs(k1) === "pass",
+        evidence: [`forged cosig from ${bad.id} attached to the fork head: HTTP ${attach.status}, ${forkHead.cosigs.length} cosig on the head`, `k=2: ${why(k2.verdict)}`, `control, k=1: the cosignature check ${cosigs(k1).toUpperCase()}S: with k=1 one bad witness WOULD be enough (only the split-view alert raised by this very check would then stop it)`] };
     } },
   { n: 8, name: "Log or witnesses unreachable", attack: "The log, one witness, or all witnesses are down; or witnesses stop cosigning", expected: "Fails closed with a clear reason",
     run: async (w) => {

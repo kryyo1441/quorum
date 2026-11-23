@@ -33,7 +33,7 @@ export function createWorld(o: { witnesses?: number; threshold?: number } = {}) 
   const urls = wkeys.map((_, i) => `http://w${i + 1}`);
   const witnesses = wkeys.map((k, i) => {
     const net = { logUrl: "http://log", peers: urls.filter((_, j) => j !== i), fetch, now: () => new Date(clock.t) };
-    const core = new WitnessCore({ id: `w${i + 1}`, secretKey: k.secretKey, logId: logId.logId, logPublicKey: logId.publicKey, heartbeatMs: 10_000 }, netDeps(net));
+    const core: WitnessCore = new WitnessCore({ id: `w${i + 1}`, secretKey: k.secretKey, logId: logId.logId, logPublicKey: logId.publicKey, heartbeatMs: 10_000 }, netDeps(net, () => core.head()));
     const run = runner(core, net);
     hosts.set(`w${i + 1}`, witnessApp(`w${i + 1}`, core, run.onHead));
     return { id: `w${i + 1}`, url: urls[i], host: `w${i + 1}`, secretKey: k.secretKey, publicKey: k.publicKey, core, run };
