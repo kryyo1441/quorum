@@ -27,6 +27,7 @@ Open http://localhost:3000. Check: **Witnesses** shows w1, w2, w3 online, **Log*
 - **Fleet shows an error**: the demo server or a service is down. `docker compose ps`; restart with `docker compose up -d`.
 - **After attack 5 every tile is red on the next roll out**: expected (see script). Press **Reset everything** before the next attack.
 - **Attack 4 shows no alert yet**: the monitor polls every 2 s; wait a moment, refresh **Releases**.
+- **Attack 4 is permanent by design**: the log is append-only, so the malicious 2.2.0 entry stays in it after Reset, and the monitor keeps flagging it (that is the product working). Before a clean take, click the red *unapproved* badge on **Releases** to approve-and-dismiss it, or start from scratch with `docker compose down -v && docker compose up`.
 - **Attack 9 (tamper a leaf in Postgres)** is on the fleet page too: use it only if you have time. It needs the Postgres-backed stack and shows up as the monitor's rewrite alert on **Witnesses**.
 - Never run this with `DEV=1` in front of an audience: that mode uses public keys.
 
