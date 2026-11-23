@@ -19,7 +19,11 @@ export class Monitor {
   readonly alerts: SplitViewAlert[] = [];
   constructor(private readonly cfg: MonitorConfig, private readonly d: MonitorDeps) {}
 
-  approve(r: Approved) { this.approved.add(`${r.app}\0${r.version}\0${r.platform}\0${r.sha256}`); }
+  /** Approving a release withdraws any UNAPPROVED_RELEASE alert raised for it (a late approval by the vendor is not an attack). */
+  approve(r: Approved) {
+    this.approved.add(`${r.app}\0${r.version}\0${r.platform}\0${r.sha256}`);
+    for (let i = this.alerts.length - 1; i >= 0; i--) { const a = this.alerts[i]; if (a.kind === "UNAPPROVED_RELEASE" && a.app === r.app && a.version === r.version && a.platform === r.platform && a.evidence.sha256 === r.sha256) this.alerts.splice(i, 1); }
+  }
 
   /** One poll. Does not trust the log's own leaf hashes: recomputes them from the entries, and checks every head is consistent with the last one.
    *  Returns the NEW alerts. Throws if the log is unreachable (the caller retries; nothing is silently skipped). */

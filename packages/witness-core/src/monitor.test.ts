@@ -45,3 +45,10 @@ test("a stored leaf rewritten WITH its hash fixed is still reported (first-seen 
   const r = await m.poll();
   expect(r.some((x) => x.kind === "INCONSISTENT_STH" && (x.evidence as { idx?: number }).idx === 0)).toBe(true);
 });
+test("approving a release later withdraws its alert", async () => {
+  const { m } = mk([rel("1.0.0", "a".repeat(64))]);
+  await m.poll();
+  expect(m.alerts).toHaveLength(1);
+  m.approve({ app: "a", version: "1.0.0", platform: "win-x64", sha256: "a".repeat(64) });
+  expect(m.alerts).toHaveLength(0);
+});
