@@ -14,4 +14,4 @@ const core = new WitnessCore(
 );
 const r = runner(core, net);
 setInterval(() => void r.tick(), Number(env.POLL_MS ?? 2000)); // gossip rides the poll: ponytail: SPEC says every 10s, 2s is cheaper than a second timer
-serve({ fetch: createApp(id, core, r.onHead).fetch, port: Number(env.PORT ?? 4101) });
+serve({ fetch: createApp(id, core, r.onHead, env.ADMIN_TOKEN ?? (dev ? "dev-admin-token" : undefined)).fetch, port: Number(env.PORT ?? 4101) });

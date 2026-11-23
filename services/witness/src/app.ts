@@ -4,7 +4,7 @@ import { Observation, STH } from "@uw/shared";
 import type { HeadResult, WitnessCore } from "@uw/witness-core";
 
 /** `onHead` is the one path every head takes (log poll or gossip): core check, then (if it cosigned) submit the cosig to the log. */
-export function createApp(id: string, core: WitnessCore, onHead: (h: STH) => Promise<HeadResult>) {
+export function createApp(id: string, core: WitnessCore, onHead: (h: STH) => Promise<HeadResult>, adminToken?: string) {
   const app = new Hono();
   app.use(cors()); // /verify runs the client checks in the browser and reads /alerts
   app.get("/health", (c) => c.json({ id, ok: true }));
@@ -21,6 +21,12 @@ export function createApp(id: string, core: WitnessCore, onHead: (h: STH) => Pro
     if (!p.success) return c.json({ error: p.error.issues }, 400);
     const r = await onHead(p.data);
     return c.json({ status: r.status });
+  });
+  /** Demo reset only. Disabled unless ADMIN_TOKEN is configured; never part of a deployment that trusts its witnesses. */
+  app.post("/admin/reset", (c) => {
+    if (!adminToken || c.req.header("authorization") !== `Bearer ${adminToken}`) return c.json({ error: "unauthorized" }, 401);
+    core.reset();
+    return c.json({ ok: true });
   });
   return app;
 }
