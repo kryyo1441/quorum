@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quorum</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='13' fill='%230b0a10'/%3E%3Ccircle cx='17' cy='19' r='9' fill='%23c9b6f7'/%3E%3Ccircle cx='31' cy='19' r='9' fill='%23a68df0'/%3E%3Ccircle cx='24' cy='31' r='9' fill='none' stroke='%23b9a2f2' stroke-width='2' stroke-dasharray='3 3'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0910; --panel:#121019; --line:#242030; --ink:#ede9f6; --mute:#8d879c;
+  --lav:#b9a2f2; --lav2:#e0d2ff; --lav3:#8f74e6; --ok:#8fdcb8; --bad:#f08a9a;
+  --serif:"Newsreader",ui-serif,Georgia,serif; --sans:"Hanken Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --mono:ui-monospace,"JetBrains Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden}
+body{background:
+  radial-gradient(60rem 32rem at 85% -12%,rgba(143,116,230,.18),transparent),
+  radial-gradient(40rem 24rem at -5% 0%,rgba(224,210,255,.07),transparent),var(--bg)}
+h1,h2,h3{font-family:var(--serif);font-weight:400;letter-spacing:-.015em}
+.grad{background:linear-gradient(135deg,var(--lav2),var(--lav3));-webkit-background-clip:text;background-clip:text;color:transparent}
+em{font-style:italic}
+
+/* ---------- deck + transitions ---------- */
+#deck{position:fixed;inset:0}
+.slide{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:6vh 8vw 9vh;
+  opacity:0;pointer-events:none;transform:translateX(5vw) scale(.985);filter:blur(6px);
+  transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1),filter .7s}
+.slide.before{transform:translateX(-5vw) scale(.985)}
+.slide.active{opacity:1;pointer-events:auto;transform:none;filter:none}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .6s cubic-bezier(.2,.7,.2,1),transform .6s cubic-bezier(.2,.7,.2,1)}
+.slide.active .reveal{opacity:1;transform:none;transition-delay:calc(var(--d,0)*140ms + 250ms)}
+.eyebrow{font-size:clamp(.8rem,1.1vw,1rem);letter-spacing:.2em;text-transform:uppercase;color:var(--lav);margin-bottom:2.2vh}
+.title{font-size:clamp(2.2rem,5.6vw,5.2rem);line-height:1.04}
+.sub{font-size:clamp(1rem,1.7vw,1.5rem);color:var(--mute);max-width:46ch;margin-top:2.4vh;line-height:1.5}
+.lead{font-size:clamp(1.1rem,2vw,1.8rem);line-height:1.45;max-width:52ch}
+.muted{color:var(--mute)}
+.card{background:rgba(18,16,25,.8);border:1px solid var(--line);border-radius:1.4rem;padding:1.6rem 1.8rem;backdrop-filter:blur(6px)}
+.grid{display:grid;gap:1.4rem}
+.cols2{grid-template-columns:1fr 1fr}.cols3{grid-template-columns:repeat(3,1fr)}.cols4{grid-template-columns:repeat(4,1fr)}
+.pill{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:.25rem .8rem;font-size:.85rem;color:var(--mute)}
+.pill.ok{color:var(--ok);border-color:rgba(143,220,184,.4);background:rgba(143,220,184,.08)}
+.pill.bad{color:var(--bad);border-color:rgba(240,138,154,.4);background:rgba(240,138,154,.08)}
+.mono{font-family:var(--mono)}
+.foot{position:absolute;left:8vw;right:8vw;bottom:3.2vh;font-size:.78rem;color:var(--mute);opacity:.75}
+svg{width:100%;height:auto;display:block;overflow:visible}
+svg text{font-family:var(--sans);fill:var(--ink)}
+svg .t-mute{fill:var(--mute)} svg .t-mono{font-family:var(--mono)}
+
+/* ---------- chrome ---------- */
+#bar{position:fixed;left:0;top:0;height:3px;background:linear-gradient(90deg,var(--lav2),var(--lav3));width:0;transition:width .5s;z-index:30}
+#count{position:fixed;right:2.2vw;bottom:2.4vh;font-size:.8rem;color:var(--mute);z-index:30;font-variant-numeric:tabular-nums}
+#hint{position:fixed;left:2.2vw;bottom:2.4vh;font-size:.75rem;color:var(--mute);z-index:30;opacity:.7;transition:opacity 1s}
+#brand{position:fixed;left:2.2vw;top:2.4vh;display:flex;align-items:center;gap:.6rem;font-family:var(--serif);font-size:1.15rem;z-index:30;opacity:.9}
+#brand svg{width:1.6rem}
+#notes{position:fixed;left:0;right:0;bottom:0;background:rgba(10,9,16,.96);border-top:1px solid var(--line);padding:1.2rem 8vw 1.6rem;font-size:clamp(.95rem,1.3vw,1.2rem);line-height:1.55;color:var(--ink);transform:translateY(100%);transition:transform .4s;z-index:40;max-height:42vh;overflow:auto}
+#notes.on{transform:none}
+#notes b{color:var(--lav);font-weight:500}
+.tap{position:fixed;top:0;bottom:0;width:18vw;z-index:20}
+#tapL{left:0}#tapR{right:0}
+
+/* ---------- slide-specific ---------- */
+.hero .title{font-size:clamp(3rem,9vw,8.5rem);line-height:.98}
+.big-q{font-family:var(--serif);font-size:clamp(2rem,5vw,4.6rem);line-height:1.1;max-width:20ch}
+.timeline{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;margin-top:4vh}
+.timeline:before{content:"";position:absolute;left:0;right:0;top:.55rem;height:2px;background:linear-gradient(90deg,var(--lav3),var(--bad));opacity:.5}
+.tl{position:relative;padding-top:1.8rem}
+.tl:before{content:"";position:absolute;left:0;top:0;width:1.1rem;height:1.1rem;border-radius:50%;background:var(--bg);border:2px solid var(--bad);box-shadow:0 0 18px rgba(240,138,154,.5)}
+.tl .when{font-size:.85rem;color:var(--lav);letter-spacing:.08em}
+.tl h3{font-size:clamp(1.3rem,2vw,1.9rem);margin:.3rem 0 .6rem}
+.tl .num{font-family:var(--serif);font-size:clamp(2rem,3.6vw,3.4rem);line-height:1}
+.tl p{font-size:.95rem;color:var(--mute);line-height:1.45;margin-top:.5rem}
+.stat{font-family:var(--serif);font-size:clamp(2.6rem,6vw,5.4rem);line-height:1;font-variant-numeric:tabular-nums}
+.stat small{font-size:.38em;color:var(--mute);margin-left:.15em}
+.stat-l{color:var(--mute);margin-top:.6rem;font-size:clamp(.9rem,1.2vw,1.1rem)}
+
+/* checks */
+.checks{list-style:none;padding:0;display:grid;gap:.7rem;margin-top:3vh;max-width:46rem}
+.checks li{display:flex;gap:1rem;align-items:center;border:1px solid var(--line);border-radius:1rem;padding:.8rem 1.2rem;background:rgba(18,16,25,.8);font-size:clamp(.95rem,1.4vw,1.25rem)}
+.checks li i{font-style:normal;color:var(--ok);font-family:var(--mono)}
+.checks li span{color:var(--mute);font-size:.85em;margin-left:auto}
+
+/* scoreboard */
+table.sb{width:100%;border-collapse:separate;border-spacing:0 .45rem;font-size:clamp(.85rem,1.25vw,1.15rem)}
+.sb th{font-weight:500;text-align:left;color:var(--mute);font-size:.8em;letter-spacing:.12em;text-transform:uppercase;padding:0 1rem}
+.sb td{padding:.55rem 1rem;background:rgba(18,16,25,.8);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.sb td:first-child{border-left:1px solid var(--line);border-radius:.9rem 0 0 .9rem;font-family:var(--serif);font-size:1.1em}
+.sb td:last-child{border-right:1px solid var(--line);border-radius:0 .9rem .9rem 0}
+.sb .x{color:var(--bad)}.sb .v{color:var(--ok)}
+.sb tr{opacity:0;transform:translateX(-14px);transition:all .5s cubic-bezier(.2,.7,.2,1)}
+.slide.active .sb tr{opacity:1;transform:none;transition-delay:calc(var(--r)*110ms + 400ms)}
+
+/* diagram animation (restarts each time the slide is entered) */
+.slide:not(.active) .draw{stroke-dashoffset:var(--len,400)}
+.draw{stroke-dasharray:var(--len,400);stroke-dashoffset:0;transition:stroke-dashoffset 1.2s ease calc(var(--d,0)*200ms + 400ms)}
+.pop{opacity:0;transform:scale(.6);transform-origin:center;transform-box:fill-box;transition:all .5s cubic-bezier(.2,1.4,.4,1) calc(var(--d,0)*200ms + 600ms)}
+.slide.active .pop{opacity:1;transform:none}
+.fade{opacity:0;transition:opacity .6s calc(var(--d,0)*220ms + 500ms)}
+.slide.active .fade{opacity:1}
+@keyframes travel{0%{offset-distance:0%;opacity:0}10%{opacity:1}90%{opacity:1}100%{offset-distance:100%;opacity:0}}
+.pkt{offset-rotate:0deg;opacity:0;offset-path:var(--p);transform-box:fill-box}
+.slide.active .pkt{animation:travel var(--t,2.6s) linear infinite;animation-delay:calc(var(--d,0)*350ms + 1.2s)}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+.slide.active .blink{animation:pulse 1.6s infinite}
+@keyframes shake{20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
+.slide.active .shake{animation:shake .5s 1.8s}
+@media (max-width:900px){.cols2,.cols3,.cols4,.timeline{grid-template-columns:1fr}.slide{padding:8vh 6vw 10vh;overflow:auto;justify-content:flex-start}.timeline:before{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}.reveal,.fade,.pop,.sb tr{opacity:1!important;transform:none!important}.draw{stroke-dashoffset:0!important}}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="brand"><svg viewBox="0 0 48 48"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e0d2ff"/><stop offset="1" stop-color="#8f74e6"/></linearGradient></defs><rect width="48" height="48" rx="13" fill="#0b0a10"/><circle cx="17" cy="19" r="9" fill="url(#lg)"/><circle cx="31" cy="19" r="9" fill="url(#lg)" fill-opacity=".9"/><circle cx="24" cy="31" r="9" fill="none" stroke="url(#lg)" stroke-width="2" stroke-dasharray="3 3"/></svg>Quorum</div>
+<div id="hint">← → navigate &nbsp;·&nbsp; N speaker notes &nbsp;·&nbsp; F fullscreen</div>
+<div id="count"></div>
+<div class="tap" id="tapL"></div><div class="tap" id="tapR"></div>
+<div id="notes"></div>
+
+<main id="deck">
+
+<!-- 1 · title -->
+<section class="slide hero" data-notes="<b>Open with silence, then the question.</b> Don't say the name yet. Let the first slide sit for two seconds, then move on.">
+  <div class="eyebrow reveal" style="--d:0">Open Innovation track</div>
+  <h1 class="title reveal" style="--d:1">Trust the log,<br><em class="grad">not the server.</em></h1>
+  <p class="sub reveal" style="--d:2">Quorum: a software update installs only if a quorum of independent witnesses has seen the exact same file.</p>
+</section>
+
+<!-- 2 · question -->
+<section class="slide" data-notes="<b>Say:</b> 'Think about the last time you clicked Update now. You trusted that the file on your machine is the same file everyone else got. Can you prove it? You can't. Neither can your antivirus.' Pause. Then: 'Four products got this wrong in the last eighteen months.'">
+  <div class="eyebrow reveal" style="--d:0">A question</div>
+  <div class="big-q reveal" style="--d:1">When you click <em class="grad">“Update now”</em>, how do you know you got the same file as everyone else?</div>
+  <p class="sub reveal" style="--d:3">You don't. Today the answer is: because the server said so.</p>
+</section>
+
+<!-- 3 · problem timeline + stats -->
+<section class="slide" data-notes="<b>Say:</b> 'This is not hypothetical. Notepad++, a text editor, hijacked through its hosting provider. eScan, an antivirus, pushed malware for two hours. AOMEI, a backup tool: the file was tampered for five to ten minutes at a time, and the app did not even verify it. cPGuard: fake versions with a stolen publishing key, root access, nearly three thousand servers.' <b>Point at the numbers.</b> Sources are in the footer; eScan disputes parts of the account, so we say 'reported'.">
+  <div class="eyebrow reveal" style="--d:0">The problem</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(2rem,4.6vw,4.2rem)">Four update channels hijacked in <em class="grad">eighteen months.</em></h2>
+  <div class="timeline">
+    <div class="tl reveal" style="--d:3"><div class="when">JUN 2025 → FEB 2026</div><h3>Notepad++</h3><div class="num"><span class="count" data-to="6">0</span><small class="muted"> months</small></div><p>Updater traffic hijacked via the hosting provider. Only a subset of users got the malicious installer.</p></div>
+    <div class="tl reveal" style="--d:4"><div class="when">20 JAN 2026</div><h3>eScan</h3><div class="num">~<span class="count" data-to="2">0</span><small class="muted"> hours</small></div><p>A regional update server pushed malware. Reported: hundreds of machines hit.</p></div>
+    <div class="tl reveal" style="--d:5"><div class="when">MAY → JUL 2026</div><h3>AOMEI Backupper</h3><div class="num"><span class="count" data-to="5">0</span>–<span class="count" data-to="10">0</span><small class="muted"> min</small></div><p>Tampered in short windows, across 11 countries. The app did not verify the files.</p></div>
+    <div class="tl reveal" style="--d:6"><div class="when">2 NOV 2026</div><h3>cPGuard</h3><div class="num"><span class="count" data-to="2950" data-fmt="1">0</span></div><p>servers ran fake versions as root, signed with a stolen publishing key.</p></div>
+  </div>
+  <div class="foot">Sources: Help Net Security, Kaspersky Securelist, SecurityWeek, Malwarebytes, AOMEI advisory (19 Oct 2026), CSA research note (7 Nov 2026; counts preliminary). Reports differ on some details.</div>
+</section>
+
+<!-- 4 · selective -->
+<section class="slide" data-notes="<b>Say:</b> 'Here is why signatures are not enough. The attacker controls the server, or the signing path. So they serve most people the real file. One victim gets the bad one. Anyone who tries to reproduce the problem gets the clean file and sees nothing. Nobody can catch a bad update that only the victim sees.'">
+  <div class="eyebrow reveal" style="--d:0">Why signatures are not enough</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(2rem,4.4vw,4rem)">Many attacks were <em class="grad">selective.</em></h2>
+  <div class="grid cols2" style="align-items:center;margin-top:3vh">
+    <div class="reveal" style="--d:2">
+      <svg viewBox="0 0 560 330" aria-label="A compromised update server sends most clients the real file and one client a malicious file">
+        <rect x="10" y="125" width="130" height="80" rx="16" fill="#121019" stroke="#f08a9a" stroke-width="2"/>
+        <text x="75" y="160" text-anchor="middle" font-size="15">Update</text><text x="75" y="181" text-anchor="middle" font-size="15">server</text>
+        <g stroke-width="2" fill="none">
+          <path class="draw" style="--len:420;--d:0" d="M140 150 C260 40 330 40 450 40" stroke="#8fdcb8"/>
+          <path class="draw" style="--len:420;--d:1" d="M140 160 C260 110 330 100 450 100" stroke="#8fdcb8"/>
+          <path class="draw" style="--len:420;--d:2" d="M140 165 L450 165" stroke="#8fdcb8"/>
+          <path class="draw" style="--len:420;--d:3" d="M140 175 C260 225 330 230 450 230" stroke="#8fdcb8"/>
+          <path class="draw" style="--len:420;--d:4" d="M140 185 C260 300 330 300 450 296" stroke="#f08a9a" stroke-dasharray="6 6"/>
+        </g>
+        <g class="pop" style="--d:4"><circle cx="470" cy="40" r="18" fill="#121019" stroke="#8fdcb8" stroke-width="2"/><circle cx="470" cy="100" r="18" fill="#121019" stroke="#8fdcb8" stroke-width="2"/><circle cx="470" cy="165" r="18" fill="#121019" stroke="#8fdcb8" stroke-width="2"/><circle cx="470" cy="230" r="18" fill="#121019" stroke="#8fdcb8" stroke-width="2"/></g>
+        <g class="pop shake" style="--d:5"><circle cx="470" cy="296" r="18" fill="#2a1219" stroke="#f08a9a" stroke-width="2"/><text x="470" y="302" text-anchor="middle" font-size="16" fill="#f08a9a" style="fill:#f08a9a">!</text></g>
+        <text class="fade t-mute" style="--d:5" x="505" y="45" font-size="12">real file</text>
+        <text class="fade" style="--d:6;fill:#f08a9a" x="505" y="300" font-size="12">malicious</text>
+      </svg>
+    </div>
+    <div class="grid reveal" style="--d:4;gap:1rem">
+      <div class="card"><b>Researchers reproducing it saw nothing.</b><p class="muted" style="margin-top:.4rem">They were served the clean file, like everyone else.</p></div>
+      <div class="card"><b>A valid signature proves who signed, not who else got it.</b><p class="muted" style="margin-top:.4rem">If the attacker holds the server or the key, the signature says nothing about the other 99.9% of users.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 · idea -->
+<section class="slide" data-notes="<b>Say:</b> 'The idea is borrowed from how the web already fixed this for certificates. Make every release public, in a log that can only grow. Then get independent witnesses to check the log and sign what they saw. A client installs only if enough witnesses vouch for exactly this file. The server is no longer in the trust path. The name comes from that: a quorum.'">
+  <div class="eyebrow reveal" style="--d:0">The idea</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(2rem,4.4vw,4rem)">Make every release <em class="grad">public.</em><br>Make the public <em class="grad">agree.</em></h2>
+  <div class="grid cols3" style="margin-top:4vh">
+    <div class="card reveal" style="--d:3"><div class="eyebrow" style="margin:0 0 .6rem">1 · Log</div><b>An append-only public log</b><p class="muted" style="margin-top:.5rem">Every release is a leaf in a Merkle tree. History cannot be rewritten without everyone noticing.</p></div>
+    <div class="card reveal" style="--d:4"><div class="eyebrow" style="margin:0 0 .6rem">2 · Witnesses</div><b>Independent cosigners</b><p class="muted" style="margin-top:.5rem">They check the log only ever grows, then sign its head. They gossip to catch a log showing different people different things.</p></div>
+    <div class="card reveal" style="--d:5"><div class="eyebrow" style="margin:0 0 .6rem">3 · Client</div><b>Verify before install</b><p class="muted" style="margin-top:.5rem">Install only if k of n witnesses vouch for this exact file. Anything unreachable or wrong: fail closed.</p></div>
+  </div>
+</section>
+
+<!-- 6 · architecture -->
+<section class="slide" data-notes="<b>Walk the diagram left to right.</b> 'Vendor signs and publishes to the log. Three witnesses check and cosign each new head, and gossip to each other. The update server can still be attacked. The client takes the file from it, but checks everything against the log and the witnesses before installing. And it reports back: what it was offered, and the head it was shown. The vendor monitor watches the log for anything the vendor did not approve.'">
+  <div class="eyebrow reveal" style="--d:0">How it works</div>
+  <div class="reveal" style="--d:1;margin-top:1vh">
+  <svg viewBox="0 0 1000 440" aria-label="Architecture: vendor, log, three witnesses, update server, client, monitor">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8d879c"/></marker></defs>
+    <!-- nodes -->
+    <g class="pop" style="--d:0"><rect x="20" y="60" width="150" height="70" rx="16" fill="#121019" stroke="#2c2740"/><text x="95" y="102" text-anchor="middle" font-size="18">Vendor</text></g>
+    <g class="pop" style="--d:1"><rect x="300" y="170" width="190" height="100" rx="18" fill="#171322" stroke="#b9a2f2" stroke-width="2"/><text x="395" y="212" text-anchor="middle" font-size="19">Public log</text><text x="395" y="238" text-anchor="middle" font-size="13" class="t-mute">Merkle tree · RFC 6962</text></g>
+    <g class="pop" style="--d:2"><circle cx="720" cy="60" r="38" fill="#121019" stroke="#8fdcb8" stroke-width="2"/><text x="720" y="66" text-anchor="middle" font-size="16">W1</text>
+      <circle cx="640" cy="215" r="38" fill="#121019" stroke="#8fdcb8" stroke-width="2"/><text x="640" y="221" text-anchor="middle" font-size="16">W2</text>
+      <circle cx="800" cy="215" r="38" fill="#121019" stroke="#8fdcb8" stroke-width="2"/><text x="800" y="221" text-anchor="middle" font-size="16">W3</text></g>
+    <g class="pop" style="--d:3"><rect x="20" y="320" width="170" height="80" rx="16" fill="#121019" stroke="#f08a9a" stroke-dasharray="5 5"/><text x="105" y="354" text-anchor="middle" font-size="16">Update server</text><text x="105" y="376" text-anchor="middle" font-size="12" class="t-mute">assumed attackable</text></g>
+    <g class="pop" style="--d:4"><rect x="300" y="330" width="190" height="80" rx="16" fill="#171322" stroke="#e0d2ff" stroke-width="2"/><text x="395" y="364" text-anchor="middle" font-size="18">Client</text><text x="395" y="386" text-anchor="middle" font-size="12" class="t-mute">8 checks before install</text></g>
+    <g class="pop" style="--d:5"><rect x="760" y="340" width="190" height="70" rx="16" fill="#121019" stroke="#2c2740"/><text x="855" y="381" text-anchor="middle" font-size="16">Vendor monitor</text></g>
+    <!-- edges -->
+    <g fill="none" stroke="#8d879c" stroke-width="1.6" marker-end="url(#ah)">
+      <path class="draw" style="--len:300;--d:1" d="M170 100 C240 110 260 150 300 185"/>
+      <path class="draw" style="--len:300;--d:2" d="M490 195 C560 150 620 100 686 74"/>
+      <path class="draw" style="--len:300;--d:3" d="M490 225 L602 218"/>
+      <path class="draw" style="--len:300;--d:3" d="M490 240 C600 300 740 280 790 252" />
+      <path class="draw" style="--len:300;--d:4" d="M190 360 L300 368"/>
+      <path class="draw" style="--len:300;--d:5" d="M395 330 L395 272"/>
+      <path class="draw" style="--len:300;--d:6" d="M760 375 C650 360 560 300 490 262"/>
+    </g>
+    <g fill="none" stroke="#8fdcb8" stroke-width="1.4" stroke-dasharray="4 5"><path class="fade" style="--d:5" d="M682 215 L758 215"/><path class="fade" style="--d:5" d="M690 90 L650 180"/><path class="fade" style="--d:5" d="M750 90 L790 180"/></g>
+    <text class="fade t-mute" style="--d:6" x="700" y="205" font-size="11" text-anchor="middle">gossip</text>
+    <text class="fade t-mute" style="--d:6" x="235" y="120" font-size="12">signs + publishes</text>
+    <text class="fade t-mute" style="--d:6" x="540" y="120" font-size="12">head → cosign</text>
+    <text class="fade t-mute" style="--d:6" x="425" y="305" font-size="12">proof + head</text>
+    <text class="fade t-mute" style="--d:6" x="610" y="352" font-size="12">tails</text>
+    <text class="fade t-mute" style="--d:6" x="232" y="352" font-size="12">file + manifest</text>
+    <!-- travelling packets -->
+    <circle class="pkt" style="--p:path('M170 100 C240 110 260 150 300 185');--d:0" r="5" fill="#e0d2ff"/>
+    <circle class="pkt" style="--p:path('M490 195 C560 150 620 100 686 74');--d:1" r="5" fill="#8fdcb8"/>
+    <circle class="pkt" style="--p:path('M686 74 C620 100 560 150 490 195');--d:3" r="5" fill="#b9a2f2"/>
+    <circle class="pkt" style="--p:path('M395 330 L395 272');--d:2" r="5" fill="#e0d2ff"/>
+  </svg></div>
+</section>
+
+<!-- 7 · checks -->
+<section class="slide" data-notes="<b>Say:</b> 'Before anything is installed, the client runs eight checks. And here is the important rule: any error, including an unreachable log or a dead witness, blocks the install. It fails closed.' If time allows: 'The eighth check is the new one. If any witness has an open alert for this exact file, we stop.'">
+  <div class="eyebrow reveal" style="--d:0">Before anything is installed</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(2rem,4.2vw,3.8rem)">Eight checks. Any failure <em class="grad">blocks.</em></h2>
+  <ul class="checks">
+    <li class="reveal" style="--d:2"><i>01</i>File hash matches the manifest<span>HASH_MISMATCH</span></li>
+    <li class="reveal" style="--d:3"><i>02</i>Vendor signature valid for a known key<span>BAD_VENDOR_SIG</span></li>
+    <li class="reveal" style="--d:4"><i>03</i>Right app and platform, and not a downgrade<span>STALE_STH</span></li>
+    <li class="reveal" style="--d:5"><i>04</i>Inclusion proof reaches the head's root<span>NOT_IN_LOG</span></li>
+    <li class="reveal" style="--d:6"><i>05</i>Head is signed by the log<span>BAD_INCLUSION_PROOF</span></li>
+    <li class="reveal" style="--d:7"><i>06</i>At least k of n witnesses cosigned this head<span>INSUFFICIENT_COSIGS</span></li>
+    <li class="reveal" style="--d:8"><i>07</i>Those cosignatures are fresh<span>STALE_STH</span></li>
+    <li class="reveal" style="--d:9"><i>08</i>No witness has an open alert for this file<span>SPLIT_VIEW</span></li>
+  </ul>
+</section>
+
+<!-- 8 · attack 1 -->
+<section class="slide" data-notes="<b>Attack 1 (live in the demo).</b> 'The update server serves client 7 a different binary. Client 7 notices the hash does not match, and is blocked. But the important part: it also reports what it saw. The witnesses now hold two different hashes for one version, and raise an alert. The attack is no longer invisible. Everyone else is unaffected.'">
+  <div class="eyebrow reveal" style="--d:0">Attack 1 · a targeted binary swap</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(2rem,4.2vw,3.8rem)">One victim, <em class="grad">everyone else told.</em></h2>
+  <div class="grid cols2" style="align-items:center;margin-top:2vh">
+    <div class="reveal" style="--d:2"><svg viewBox="0 0 560 320">
+      <g class="pop" style="--d:0"><circle cx="60" cy="50" r="20" fill="#121019" stroke="#8fdcb8" stroke-width="2"/><text x="60" y="56" text-anchor="middle" font-size="13">c1</text><circle cx="60" cy="120" r="20" fill="#121019" stroke="#8fdcb8" stroke-width="2"/><text x="60" y="126" text-anchor="middle" font-size="13">c2</text><circle cx="60" cy="190" r="20" fill="#121019" stroke="#8fdcb8" stroke-width="2"/><text x="60" y="196" text-anchor="middle" font-size="13">c3</text></g>
+      <g class="pop shake" style="--d:1"><circle cx="60" cy="270" r="20" fill="#2a1219" stroke="#f08a9a" stroke-width="2"/><text x="60" y="276" text-anchor="middle" font-size="13" style="fill:#f08a9a">c7</text></g>
+      <g fill="none" stroke-width="1.6"><path class="draw" style="--len:300;--d:2" d="M82 50 C180 60 220 130 300 150" stroke="#8fdcb8"/><path class="draw" style="--len:300;--d:2" d="M82 120 C180 125 230 140 300 155" stroke="#8fdcb8"/><path class="draw" style="--len:300;--d:2" d="M82 190 C180 185 230 170 300 162" stroke="#8fdcb8"/><path class="draw" style="--len:300;--d:3" d="M82 270 C200 260 240 200 300 170" stroke="#f08a9a"/></g>
+      <text class="fade t-mute" style="--d:3" x="130" y="30" font-size="12">hash A</text><text class="fade" style="--d:4;fill:#f08a9a" x="130" y="296" font-size="12">hash B (different file)</text>
+      <g class="pop" style="--d:3"><rect x="300" y="110" width="140" height="100" rx="16" fill="#121019" stroke="#8fdcb8" stroke-width="2"/><text x="370" y="150" text-anchor="middle" font-size="16">Witnesses</text><text x="370" y="176" text-anchor="middle" font-size="12" class="t-mute">one version,</text><text x="370" y="192" text-anchor="middle" font-size="12" class="t-mute">two hashes</text></g>
+      <path class="draw" style="--len:120;--d:5" d="M440 160 L500 160" stroke="#f08a9a" stroke-width="2" fill="none"/>
+      <g class="pop" style="--d:6"><rect x="470" y="128" width="88" height="64" rx="12" fill="#2a1219" stroke="#f08a9a"/><text x="514" y="156" text-anchor="middle" font-size="11" style="fill:#f08a9a">HASH_</text><text x="514" y="172" text-anchor="middle" font-size="11" style="fill:#f08a9a">MISMATCH</text></g>
+    </svg></div>
+    <div class="grid reveal" style="--d:4;gap:1rem"><div class="card"><span class="pill bad">c7</span> blocked locally: <span class="mono" style="color:var(--bad)">HASH_MISMATCH</span></div><div class="card"><span class="pill ok">c1…c12</span> eleven others verify and install, unaffected</div><div class="card"><b>All three witnesses alert.</b><p class="muted" style="margin-top:.3rem">What was invisible is now evidence.</p></div></div>
+  </div>
+</section>
+
+<!-- 9 · attack 5 -->
+<section class="slide" data-notes="<b>Attack 5 (live in the demo).</b> 'This is the nastiest one: the log operator itself cheats. It shows client 3 a forked tree containing a release nobody else has. Client 3 is blocked, because the fork has no witness cosignatures. And here is the part I like: client 3 forwards the head it was shown to the witnesses. Now they hold two signed heads for the same tree size. That is proof the log lied. One victim's view becomes evidence for everyone, and every client fails closed.'">
+  <div class="eyebrow reveal" style="--d:0">Attack 5 · the log itself cheats</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(2rem,4.2vw,3.8rem)">One victim's view becomes <em class="grad">proof for everyone.</em></h2>
+  <div class="reveal" style="--d:2;margin-top:2vh"><svg viewBox="0 0 1000 330">
+    <!-- honest tree -->
+    <g class="pop" style="--d:0"><rect x="30" y="20" width="360" height="130" rx="18" fill="#121019" stroke="#8fdcb8"/><text x="50" y="52" font-size="15" class="t-mute">Public tree, size 8</text>
+      <circle cx="210" cy="86" r="14" fill="none" stroke="#8fdcb8" stroke-width="2"/><circle cx="150" cy="122" r="11" fill="none" stroke="#8fdcb8"/><circle cx="270" cy="122" r="11" fill="none" stroke="#8fdcb8"/><path d="M200 96L158 114M220 96L262 114" stroke="#8fdcb8" fill="none"/></g>
+    <text class="fade" style="--d:2;fill:#8fdcb8" x="410" y="62" font-size="14">root R · cosigned by w1, w2, w3 ✓</text>
+    <!-- fork -->
+    <g class="pop" style="--d:2"><rect x="30" y="180" width="360" height="130" rx="18" fill="#171019" stroke="#f08a9a" stroke-dasharray="6 5"/><text x="50" y="212" font-size="15" class="t-mute">Forked tree shown to client 3, size 8</text>
+      <circle cx="210" cy="246" r="14" fill="none" stroke="#f08a9a" stroke-width="2"/><circle cx="150" cy="282" r="11" fill="none" stroke="#f08a9a"/><circle cx="270" cy="282" r="11" fill="none" stroke="#f08a9a"/><path d="M200 256L158 274M220 256L262 274" stroke="#f08a9a" fill="none"/></g>
+    <text class="fade" style="--d:4;fill:#f08a9a" x="410" y="222" font-size="14">root R′ · signed by the log, cosigned by nobody ✗</text>
+    <!-- client forwards -->
+    <g class="pop shake" style="--d:4"><circle cx="560" cy="296" r="22" fill="#2a1219" stroke="#f08a9a" stroke-width="2"/><text x="560" y="301" text-anchor="middle" font-size="15" style="fill:#f08a9a">c3</text></g>
+    <path class="draw" style="--len:400;--d:5" d="M582 290 C700 290 780 250 840 182" stroke="#b9a2f2" stroke-width="2" fill="none" stroke-dasharray="7 6"/>
+    <text class="fade t-mute" style="--d:6" x="600" y="318" font-size="12">forwards the head it was shown</text>
+    <g class="pop" style="--d:6"><rect x="780" y="70" width="190" height="110" rx="18" fill="#121019" stroke="#8fdcb8" stroke-width="2"/><text x="875" y="106" text-anchor="middle" font-size="16">Witnesses</text><text x="875" y="132" text-anchor="middle" font-size="12" class="t-mute">two signed heads,</text><text x="875" y="150" text-anchor="middle" font-size="12" class="t-mute">same size, different roots</text></g>
+    <g class="pop" style="--d:8"><rect x="800" y="206" width="150" height="46" rx="12" fill="#2a1219" stroke="#f08a9a"/><text x="875" y="235" text-anchor="middle" font-size="13" style="fill:#f08a9a">INCONSISTENT_STH</text></g>
+    <path class="draw" style="--len:60;--d:8" d="M875 182 L875 204" stroke="#f08a9a" stroke-width="2" fill="none"/>
+  </svg></div>
+</section>
+
+<!-- 10 · attack 4 -->
+<section class="slide" data-notes="<b>Attack 4 (live in the demo).</b> 'The vendor's signing key is stolen and the attacker logs a malicious release. We will not pretend we stop this: clients accept it, because it is signed and logged. But it is public the moment it is logged. The vendor monitor has its own approved list, which the release key cannot write to, and it flags the release within one poll. This is exactly what happened at cPGuard, and with this system it would have been loud. You can steal the key. You cannot do it quietly.'">
+  <div class="eyebrow reveal" style="--d:0">Attack 4 · the key is stolen</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(2rem,4.2vw,3.8rem)">You can steal the key.<br><em class="grad">You cannot do it quietly.</em></h2>
+  <div class="reveal" style="--d:2;margin-top:3vh"><svg viewBox="0 0 1000 230">
+    <path class="draw" style="--len:900;--d:1" d="M60 110 L940 110" stroke="#2c2740" stroke-width="3" fill="none"/>
+    <g class="pop" style="--d:1"><circle cx="100" cy="110" r="12" fill="#f08a9a"/></g><text class="fade" style="--d:1;fill:#f08a9a" x="100" y="70" text-anchor="middle" font-size="15">Attacker signs a</text><text class="fade" style="--d:1;fill:#f08a9a" x="100" y="90" text-anchor="middle" font-size="15">malicious release</text>
+    <g class="pop" style="--d:3"><circle cx="330" cy="110" r="12" fill="#b9a2f2"/></g><text class="fade" style="--d:3" x="330" y="70" text-anchor="middle" font-size="15">Logged: it is now</text><text class="fade" style="--d:3" x="330" y="90" text-anchor="middle" font-size="15">public, forever</text>
+    <g class="pop" style="--d:5"><circle cx="560" cy="110" r="12" fill="#8fdcb8"/></g><text class="fade" style="--d:5" x="560" y="70" text-anchor="middle" font-size="15">Clients accept it</text><text class="fade t-mute" style="--d:5" x="560" y="90" text-anchor="middle" font-size="13">detected, not prevented</text>
+    <g class="pop" style="--d:7"><circle cx="820" cy="110" r="14" fill="#f08a9a"/><circle class="blink" cx="820" cy="110" r="24" fill="none" stroke="#f08a9a"/></g><text class="fade" style="--d:7;fill:#f08a9a" x="820" y="62" text-anchor="middle" font-size="16">UNAPPROVED_RELEASE</text><text class="fade t-mute" style="--d:7" x="820" y="84" text-anchor="middle" font-size="13">monitor alerts within one poll</text>
+    <text class="fade t-mute" style="--d:8" x="450" y="190" text-anchor="middle" font-size="14">The monitor's approved list needs a token the release key does not have.</text>
+  </svg></div>
+</section>
+
+<!-- 11 · scoreboard -->
+<section class="slide" data-notes="<b>Say:</b> 'Ten attacks from our threat model, all run for real, and each one beside what a signature-only updater does with the same attack. In five of them, the signature-only updater installs the attacker's file. Quorum blocks or detects every one. The red ones are the point.' Then point at the live /attack page.">
+  <div class="eyebrow reveal" style="--d:0">The scoreboard</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(1.8rem,3.6vw,3.2rem);margin-bottom:1.4vh">Ten attacks. Ten as expected.</h2>
+  <table class="sb">
+    <tr style="--r:0"><th>Attack</th><th>Signature-only updater</th><th>Quorum</th></tr>
+    <tr style="--r:1"><td>1 · Swap one client's binary</td><td class="x">blocks locally, nobody told</td><td class="v">HASH_MISMATCH · all witnesses alert</td></tr>
+    <tr style="--r:2"><td>2 · Forged manifest</td><td>blocks</td><td class="v">BAD_VENDOR_SIG</td></tr>
+    <tr style="--r:3"><td>3 · Stolen key, not logged</td><td class="x">installs</td><td class="v">NOT_IN_LOG</td></tr>
+    <tr style="--r:4"><td>4 · Stolen key, logged</td><td class="x">installs, vendor never knows</td><td class="v">monitor: UNAPPROVED_RELEASE</td></tr>
+    <tr style="--r:5"><td>5 · Log forks the tree</td><td class="x">installs</td><td class="v">blocked · INCONSISTENT_STH</td></tr>
+    <tr style="--r:6"><td>6 · Downgrade replay</td><td class="x">installs</td><td class="v">STALE_STH</td></tr>
+    <tr style="--r:7"><td>7 · One witness compromised</td><td class="x">installs</td><td class="v">blocked at k = 2</td></tr>
+    <tr style="--r:8"><td>8 · Log or witnesses down</td><td class="muted">n/a</td><td class="v">fails closed</td></tr>
+    <tr style="--r:9"><td>9 · Stored leaf tampered</td><td class="muted">n/a</td><td class="v">detected, clients blocked</td></tr>
+    <tr style="--r:10"><td>10 · Two clients, two hashes</td><td class="x">blocks locally</td><td class="v">HASH_MISMATCH</td></tr>
+  </table>
+</section>
+
+<!-- 12 · numbers -->
+<section class="slide" data-notes="<b>Say:</b> 'Some numbers, honestly measured. Verification takes about a hundred milliseconds in process and a hundred and twenty to two hundred on a real localhost stack, almost all of it network round trips. Overhead is about a kilobyte per update. A hundred and twenty-five tests. And an independent Codex review, twice, whose findings we fixed.' <b>Say 'in-process' out loud.</b>">
+  <div class="eyebrow reveal" style="--d:0">By the numbers</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(1.8rem,3.6vw,3.2rem)">Fast enough to sit in the update path.</h2>
+  <div class="grid cols4" style="margin-top:4vh;gap:1.6rem">
+    <div class="reveal" style="--d:2"><div class="stat"><span class="count" data-to="10">0</span><small>/ 10</small></div><div class="stat-l">attack scenarios as expected</div></div>
+    <div class="reveal" style="--d:3"><div class="stat">~<span class="count" data-to="98">0</span><small>ms</small></div><div class="stat-l">median verification (in-process)</div></div>
+    <div class="reveal" style="--d:4"><div class="stat">~<span class="count" data-to="1">0</span><small>KB</small></div><div class="stat-l">proofs + head per update</div></div>
+    <div class="reveal" style="--d:5"><div class="stat">~<span class="count" data-to="500">0</span><small>/s</small></div><div class="stat-l">log appends (in-process)</div></div>
+    <div class="reveal" style="--d:6"><div class="stat"><span class="count" data-to="8">0</span></div><div class="stat-l">checks before every install</div></div>
+    <div class="reveal" style="--d:7"><div class="stat"><span class="count" data-to="125">0</span></div><div class="stat-l">automated tests, incl. real Postgres</div></div>
+    <div class="reveal" style="--d:8"><div class="stat"><span class="count" data-to="2">0</span></div><div class="stat-l">independent Codex reviews, all findings fixed</div></div>
+    <div class="reveal" style="--d:9"><div class="stat"><span class="count" data-to="0">0</span></div><div class="stat-l">installs after any error: it fails closed</div></div>
+  </div>
+  <div class="foot">Measured on one machine with an in-memory store; live localhost stack is about 120–200 ms per client. Real network latency adds to both.</div>
+</section>
+
+<!-- 13 · limits -->
+<section class="slide" data-notes="<b>Say:</b> 'We would rather you hear the limits from us. Attack 4 is detected, not prevented. If the log and enough witnesses collude, it fails; our demo witnesses are all run by us, which is why the next step is recruiting independent operators. A fork is only provable if someone shown it verifies. And there is no key rotation yet.' Judges trust people who say this.">
+  <div class="eyebrow reveal" style="--d:0">Honest limits</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(1.8rem,3.6vw,3.2rem)">What this does <em class="grad">not</em> do.</h2>
+  <div class="grid cols2" style="margin-top:3vh">
+    <div class="card reveal" style="--d:2"><b>Detected, not prevented.</b><p class="muted" style="margin-top:.4rem">A stolen-key release is accepted until the monitor's next poll.</p></div>
+    <div class="card reveal" style="--d:3"><b>Collusion defeats it.</b><p class="muted" style="margin-top:.4rem">k witnesses plus the log. Our demo witnesses are all ours: independence is the next milestone.</p></div>
+    <div class="card reveal" style="--d:4"><b>A fork must be shown to someone who verifies.</b><p class="muted" style="margin-top:.4rem">That client forwards the head; a fork nobody sees is not provable.</p></div>
+    <div class="card reveal" style="--d:5"><b>No key rotation or revocation yet.</b><p class="muted" style="margin-top:.4rem">After a stolen-key alert the vendor cannot retire the key in-band.</p></div>
+    <div class="card reveal" style="--d:6"><b>Freshness is on witness heartbeats.</b><p class="muted" style="margin-top:.4rem">A log can freeze its head; independent witnesses and <span class="mono">expected</span> narrow, not remove, that.</p></div>
+    <div class="card reveal" style="--d:7"><b>Telemetry privacy.</b><p class="muted" style="margin-top:.4rem">Observations are pseudonymous, which reduces but does not remove the concern.</p></div>
+  </div>
+</section>
+
+<!-- 14 · business -->
+<section class="slide" data-notes="<b>Say:</b> 'Who pays: desktop software vendors and agent or MCP tool vendors, for a verifiable updates badge their customers and auditors can check; and enterprises who want to monitor update integrity across a fleet. The moat is the witness network: the more independent witnesses and verifying clients, the harder a split view is to hide. We are not quoting market-size numbers. We cite incidents instead.'">
+  <div class="eyebrow reveal" style="--d:0">Business</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(1.8rem,3.6vw,3.2rem)">The product is the <em class="grad">witness network.</em></h2>
+  <div class="grid cols4" style="margin-top:3.5vh;gap:1.2rem">
+    <div class="card reveal" style="--d:2"><div class="eyebrow" style="margin:0 0 .6rem">Who pays</div><p>Desktop and agent / MCP tool vendors (a “verifiable updates” badge). Enterprises monitoring fleet update integrity.</p></div>
+    <div class="card reveal" style="--d:3"><div class="eyebrow" style="margin:0 0 .6rem">Pricing (proposed)</div><p>Per app per month for SDK + hosted log + witnesses. Per endpoint for fleet monitoring. Self-hosted licence for regulated customers.</p></div>
+    <div class="card reveal" style="--d:4"><div class="eyebrow" style="margin:0 0 .6rem">Moat</div><p>More independent witnesses and more verifying clients make a split view harder to hide.</p></div>
+    <div class="card reveal" style="--d:5"><div class="eyebrow" style="margin:0 0 .6rem">Expansion</div><p>AI agent runtimes and MCP servers: privileged local access plus vendor-controlled auto-update.</p></div>
+  </div>
+  <p class="sub reveal" style="--d:7">No market-size claims: we cite incidents instead.</p>
+</section>
+
+<!-- 15 · prior art -->
+<section class="slide" data-notes="<b>Say:</b> 'We are not the first to think about transparency. Certificate Transparency, the Go checksum database, Sigstore, TUF. Our wedge is different: a drop-in SDK and a witness network for desktop apps and agent runtimes, plus detecting selective targeting across clients.'">
+  <div class="eyebrow reveal" style="--d:0">Standing on shoulders</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(1.8rem,3.6vw,3.2rem)">We are not the first. <em class="grad">We are the missing piece for apps.</em></h2>
+  <div class="grid cols4" style="margin-top:3.5vh;gap:1.2rem">
+    <div class="card reveal" style="--d:2"><b>Certificate Transparency</b><p class="muted" style="margin-top:.4rem">Public logs for TLS certificates. Our log format follows RFC 6962/9162.</p></div>
+    <div class="card reveal" style="--d:3"><b>Go checksum database</b><p class="muted" style="margin-top:.4rem">The closest model, with witnesses, but only for Go modules.</p></div>
+    <div class="card reveal" style="--d:4"><b>Sigstore / Rekor</b><p class="muted" style="margin-top:.4rem">A transparency log for signatures, mostly open-source packages and containers.</p></div>
+    <div class="card reveal" style="--d:5"><b>TUF</b><p class="muted" style="margin-top:.4rem">Secure update metadata and key roles.</p></div>
+  </div>
+  <div class="card reveal" style="--d:7;margin-top:2.2rem;border-color:rgba(185,162,242,.5)"><b>Our wedge:</b> a drop-in SDK and a witness network for <b>desktop apps and AI agent runtimes</b>, plus <b>cross-client split-view detection</b> aimed at selective targeting.</div>
+</section>
+
+<!-- 16 · close -->
+<section class="slide hero" data-notes="<b>Close.</b> 'Next: recruit independent witnesses, key rotation and revocation, and a pilot with one vendor. If you take one thing away: signatures prove who signed. A quorum proves everyone got the same thing.' Pause. Then say the last line slowly.">
+  <div class="eyebrow reveal" style="--d:0">Next</div>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(2.4rem,6vw,5.6rem)">Signatures prove who signed.<br><em class="grad">A quorum proves everyone got the same thing.</em></h2>
+  <div class="grid cols3 reveal" style="--d:3;margin-top:5vh;max-width:70rem">
+    <div class="card"><b>Independent witnesses</b><p class="muted" style="margin-top:.3rem">Recruit operators beyond us.</p></div>
+    <div class="card"><b>Key rotation + revocation</b><p class="muted" style="margin-top:.3rem">Retire a stolen key in-band.</p></div>
+    <div class="card"><b>A pilot vendor</b><p class="muted" style="margin-top:.3rem">One real app, one real log.</p></div>
+  </div>
+  <p class="sub reveal mono" style="--d:5;font-size:.95rem">github.com/kryyo1441/quorum</p>
+</section>
+
+</main>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')], notes=document.getElementById('notes'), count=document.getElementById('count'), bar=document.getElementById('bar');
+let i=0, firstIdle;
+const fmt=(n,f)=>f?n.toLocaleString('en-US'):String(n);
+function runCounters(s){
+  s.querySelectorAll('.count').forEach(el=>{
+    const to=+el.dataset.to, f=el.dataset.fmt, t0=performance.now()+600, dur=1400;
+    cancelAnimationFrame(el._raf); el.textContent=fmt(0,f);
+    const step=t=>{const p=Math.min(Math.max((t-t0)/dur,0),1), e=1-Math.pow(1-p,3); el.textContent=fmt(Math.round(to*e),f); if(p<1) el._raf=requestAnimationFrame(step)};
+    el._raf=requestAnimationFrame(step);
+  });
+}
+function show(n,{push=true}={}){
+  i=Math.max(0,Math.min(slides.length-1,n));
+  slides.forEach((s,k)=>{s.classList.toggle('active',k===i);s.classList.toggle('before',k<i)});
+  runCounters(slides[i]);
+  count.textContent=`${i+1} / ${slides.length}`;
+  bar.style.width=((i+1)/slides.length*100)+'%';
+  notes.innerHTML=slides[i].dataset.notes||'';
+  if(push) history.replaceState(null,'','#'+(i+1));
+  document.getElementById('hint').style.opacity=i===0?.7:0;
+}
+const next=()=>show(i+1), prev=()=>show(i-1);
+addEventListener('keydown',e=>{
+  if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next()}
+  else if(['ArrowLeft','PageUp','Backspace'].includes(e.key)){e.preventDefault();prev()}
+  else if(e.key==='Home')show(0); else if(e.key==='End')show(slides.length-1);
+  else if(e.key==='n'||e.key==='N')notes.classList.toggle('on');
+  else if(e.key==='f'||e.key==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen?.()}
+  else if(e.key==='Escape')notes.classList.remove('on');
+});
+document.getElementById('tapR').onclick=next; document.getElementById('tapL').onclick=prev;
+let sx=null; addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});
+addEventListener('touchend',e=>{if(sx===null)return;const d=e.changedTouches[0].clientX-sx; if(Math.abs(d)>50)(d<0?next:prev)(); sx=null},{passive:true});
+addEventListener('hashchange',()=>show((parseInt(location.hash.slice(1))||1)-1,{push:false}));
+show((parseInt(location.hash.slice(1))||1)-1,{push:false});
+</script>
+</body>
+</html>
