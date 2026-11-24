@@ -4,7 +4,7 @@
 <p align="center"><b>A software update installs only if a quorum of independent witnesses has seen the exact same file.</b><br>
 The update server stops being a party you have to trust.</p>
 
-<p align="center"><img src="assets/demo.gif" alt="Quorum demo: roll out to 12 clients, swap one client's binary, fork the log, steal the vendor key, run all ten attack scenarios" width="900"></p>
+<p align="center"><img src="assets/demo.gif" alt="Quorum demo: roll out to 12 clients, swap one client's binary, fork the log, steal the vendor key, run all ten attack scenarios (recorded before two-key approval)" width="900"></p>
 
 <p align="center"><sub>The whole demo, recorded from the running stack: a clean rollout, attack 1 (one client gets a different binary), attack 5 (the log forks one client's view), attack 4 (a stolen-key release; recorded before two-key approval, so it shows the old detect-only behaviour: a stolen release key is now refused outright), then all ten scenarios.</sub></p>
 
@@ -19,7 +19,7 @@ Update channels are being hijacked, and code signing did not save the victims.
 | **Notepad++** (June 2025, disclosed Feb 2026) | Updater traffic hijacked through the hosting provider; only a subset of users received malicious installers | Different clients were offered different files for one version |
 | **eScan** (20 Jan 2026) | A regional update server pushed a malicious replacement for about two hours | A release that is not in the public log |
 | **AOMEI Backupper** (May to July 2026) | Update files tampered for **5 to 10 minutes at a time**; the app did not verify them | A different hash for the same version, seen by the witnesses |
-| **cPGuard** (2 Nov 2026) | Fake versions uploaded with a **stolen publishing key** to about 2,950 servers, running as root | A signed release the vendor never approved: it is public the moment it is logged |
+| **cPGuard** (2 Nov 2026) | Fake versions uploaded with a **stolen publishing key** to about 2,950 servers, running as root | One stolen key is not enough: every release needs a second, separate approver key, so the log and every client refuse it. With both keys stolen it is still public the moment it is logged |
 
 Several were **selective**: only chosen targets got the bad file, so researchers reproducing the issue saw nothing. Nobody can catch an update that only the victim sees. Quorum makes that visible.
 
@@ -27,7 +27,7 @@ Several were **selective**: only chosen targets got the bad file, so researchers
 
 ```mermaid
 flowchart LR
-  V[Vendor] -- signs + publishes --> L[(Public append-only log<br/>Merkle tree, RFC 6962)]
+  V[Vendor] -- "signs with 2 keys<br/>+ publishes" --> L[(Public append-only log<br/>Merkle tree, RFC 6962)]
   L -- head --> W1[Witness 1]
   L -- head --> W2[Witness 2]
   L -- head --> W3[Witness 3]
@@ -80,9 +80,11 @@ flowchart LR
 ## Run it
 
 ```bash
-npx -y pnpm@10 env:init          # fresh keys into a gitignored .env (refuses to overwrite)
+npx -y pnpm@10 env:init          # fresh keys (log, release, approver, witnesses) into a gitignored .env (refuses to overwrite)
 docker compose up --build        # builds one image, starts Postgres, the log, 3 witnesses, the monitor, the update server, the demo server and the dashboard
 ```
+
+An `.env` made before two-key approval has no `APPROVER_*` keys and compose will refuse to start: delete it, rerun `env:init`, and start with `docker compose down -v` (the old log holds single-signed releases).
 
 A one-shot `seed` container publishes `notepad-minus 2.1.0` and waits until two witnesses have cosigned it. Then open **http://localhost:3000**:
 
@@ -92,7 +94,7 @@ A one-shot `seed` container publishes `notepad-minus 2.1.0` and waits until two 
 | **Releases** | Vendor console: published releases, approval status, `UNAPPROVED_RELEASE` alerts |
 | **Log** | Merkle tree, tree growth over time, signed heads with per-witness cosignature badges, in-browser proof verification |
 | **Witnesses** | Each witness's status, last cosigned head, gossip, alerts with evidence |
-| **Fleet** | Twelve clients verifying and installing; arm attacks 1, 5, 4 or 9 against the live stack and roll out |
+| **Fleet** | Twelve clients verifying and installing; arm attacks 1, 5, 4 (one stolen key), 4b (both keys) or 9 against the live stack and roll out |
 | **Attack** | All ten scenarios, plus latency and overhead |
 | **Verify** | Public verifier running every check in your browser |
 
@@ -188,8 +190,10 @@ Measured by `/attack` ("Measure latency and overhead"), in-process, memory store
 | Overhead per update (proofs, head, cosigs, alert queries) | about 850 bytes |
 | Publish to cosigned | about 90 ms |
 | Log appends per second | about 500 (signing and tree update, in-process) |
-| Attack to alert | scenario 4 (monitor): about 220 ms live with a 500 ms poll; per-scenario numbers on `/attack` |
+| Stolen release key (attack 4) | refused at append (HTTP 403); nothing is logged, every client `BAD_VENDOR_SIG` |
+| Attack to alert | both keys stolen (attack 4b, monitor): about 220 ms live with a 500 ms poll; per-scenario numbers on `/attack` |
 | Adversarial suite | 10 of 10 as expected |
+| Automated tests | 136 (unit, integration, real Postgres, the ten scenarios); live smoke test 17 of 17 |
 
 Live stack (separate processes on localhost): about 120 to 200 ms median per client. Real network latency will add to both.
 

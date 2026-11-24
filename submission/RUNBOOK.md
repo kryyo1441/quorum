@@ -12,6 +12,7 @@ You need Docker (with Compose) and Node (to run the key generator).
 
 ```bash
 npx -y pnpm@10 env:init        # writes a gitignored .env with FRESH keys (refuses to overwrite)
+# an .env from before two-key approval lacks APPROVER_* keys: delete it, rerun env:init, and use `docker compose down -v`
 docker compose up --build      # first run builds one image (a few minutes), then starts everything
 ```
 
@@ -52,6 +53,8 @@ If anything is odd, run the automated check, which exercises every attack and re
 npx -y pnpm@10 --filter @uw/demo smoke
 ```
 
+It runs attack 4b, whose release stays in the append-only log (and keeps an `UNAPPROVED_RELEASE` alert open). Run `docker compose down -v && docker compose up -d` after it, before a take.
+
 ---
 
 ## 3. The demo, step by step
@@ -73,7 +76,7 @@ Each step has **Do**, **You see** and **Under the hood**.
 **You see:** twelve tiles go *checking → verified → installed*, each with a latency, and a pill like "850 B of proofs + head per update" (it grows slowly with the size of the log). The expanded tile lists the eight checks.
 **Under the hood:** for each simulated client the demo server:
 1. asks the update server for the latest manifest and downloads the file (as a client named `c1`…`c12`);
-2. runs the same `checkUpdate` the SDK ships: **hash** of the file against the manifest; **vendor signature** under a known key; **target** (right app and platform, newer than the installed version); then asks the log for its head and an **inclusion proof** for this exact entry, checks the **log's signature**, counts valid **witness cosignatures** (need 2 of 3) and that they are **fresh**;
+2. runs the same `checkUpdate` the SDK ships: **hash** of the file against the manifest; **vendor signature** under a known key **and the approver's second signature** (two keys); **target** (right app and platform, newer than the installed version); then asks the log for its head and an **inclusion proof** for this exact entry, checks the **log's signature**, counts valid **witness cosignatures** (need 2 of 3) and that they are **fresh**;
 3. forwards the log-signed head it just verified to every witness (more on why in Step 4);
 4. asks every witness "any open alert for this file?" (a witness that does not answer counts as a failure: fail closed);
 5. reports an *observation* (what file it was offered) to the witnesses.
@@ -103,7 +106,7 @@ Note: the log is append-only, so this 4b entry **stays** after *Reset* (attack 4
 ### Step 6: All ten scenarios (45 s)
 **Do:** **Attack** → *Run all 10*.
 **You see:** ten cards turn "as expected" with outcomes, timings, and a red line on most: "Signature-only updater: INSTALLS THE ATTACKER'S FILE".
-**Under the hood (the honest caveat):** this page runs each scenario on a **fresh in-process copy of the whole system** (real services, real cryptography, a controllable clock) rather than on the live stack, so every run is deterministic and cannot disturb the demo. The red line is a real, simulated *signature-only* updater (checks file hash and vendor signature, nothing else) given the same attack input. The live-stack equivalents of attacks 1, 4, 5 and 9 are the buttons on the Fleet page. *Measure latency and overhead* runs a 12-client rollout in-process and reports median and p95 latency, bytes per update and log appends per second (say "in-process" when you quote them).
+**Under the hood (the honest caveat):** this page runs each scenario on a **fresh in-process copy of the whole system** (real services, real cryptography, a controllable clock) rather than on the live stack, so every run is deterministic and cannot disturb the demo. The red line is a real, simulated *signature-only* updater (checks file hash and vendor signature, nothing else) given the same attack input. The live-stack equivalents of attacks 1, 4, 4b, 5 and 9 are the buttons on the Fleet page. *Measure latency and overhead* runs a 12-client rollout in-process and reports median and p95 latency, bytes per update and log appends per second (say "in-process" when you quote them).
 
 ### Step 7 (optional): Public verifier (30 s)
 **Do:** **Verify**. Paste `7e3e66525bf84bd63982dfc295b1b9929851518e53ea013b5d10a2a90c5f507c` (or any logged hash from **Releases**).
