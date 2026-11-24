@@ -72,11 +72,15 @@ Timing: about 4 minutes spoken, plus the demo. Cut guide at the bottom.
 
 > Worse: the *log itself* cheats. It shows client three a forked tree with a release nobody else has. Client three is blocked, because that fork has no witness cosignatures. And here's what I love: client three **forwards the head it was shown** to the witnesses. Now they hold two signed heads for the same tree size. That's *proof the log lied.* One victim's view just became evidence for everyone, so everyone fails closed.
 
-`[DEMO]` **Reset. Attack 4 → Releases page.**
+`[DEMO]` **Reset. Attack 4 → Roll out.**
 
-> And the cPGuard case: the vendor's key is stolen, and a malicious release is logged. I'll be straight with you, clients *accept* it. It's signed, it's logged. We detect it; we don't prevent it. But it's public the instant it's logged, and the vendor monitor, which has an approved list the release key can't write to, flags it within one poll.
+> And the cPGuard case: the publishing key is stolen. In Quorum a release needs **two keys**: the release key and a separate approver key. The attacker signs with the one they stole, and the log **refuses it**. Nothing is logged, and every client blocks the file: **bad vendor signature**. The client checks both signatures itself, so even a log that skipped the check couldn't get it installed.
+
+`[DEMO]` **Reset. Attack 4b → Releases page.** *(optional, if time)*
+
+> And if they steal *both* keys? I'll be straight with you: then it's logged and clients accept it. But it's public the instant it's logged, and the vendor monitor flags it within one poll.
 >
-> **You can steal the key. You cannot do it quietly.**
+> **One stolen key ships nothing. Two stolen keys can't ship quietly.**
 
 ## 2:40 · The scoreboard *(slide 11, or the /attack page)*
 
@@ -84,13 +88,13 @@ Timing: about 4 minutes spoken, plus the demo. Cut guide at the bottom.
 
 > That's ten attacks from our threat model, all run for real. And next to each, the red line is what a signature-only updater does with the same attack. In five of them, it **installs the attacker's file.**
 >
-> A hundred and twenty-five tests. Verification in about a hundred milliseconds, about a kilobyte of overhead per update. And two independent code reviews by Codex, whose findings we fixed.
+> A hundred and thirty-six tests. Verification in about a hundred milliseconds, about a kilobyte of overhead per update. And two independent code reviews by Codex, whose findings we fixed.
 
 *[Say "in-process" out loud when you give the milliseconds.]*
 
 ## 3:00 · Honest limits *(slide 13)*
 
-> We'd rather you hear the limits from us. The monitor *detects* a stolen-key release, it doesn't prevent it. If enough witnesses *and* the log collude, it fails, and today all three of our witnesses are run by us. And there's no key rotation yet.
+> We'd rather you hear the limits from us. If *both* signing keys are stolen, the monitor detects the release, it doesn't prevent it. If enough witnesses *and* the log collude, it fails, and today all three of our witnesses are run by us. And there's no key rotation yet.
 
 ## 3:15 · The money *(slides 14 to 16)*
 
@@ -128,7 +132,7 @@ Timing: about 4 minutes spoken, plus the demo. Cut guide at the bottom.
 
 - **"Why not just use code signing?"** Signing proves who signed, not who else got the file. If the attacker has the server or the key, the signature is exactly what they have too.
 - **"Who runs the witnesses?"** Today, us (it's a demo). The design needs independent operators: universities, CERTs, other vendors. That's the next milestone, and the moat.
-- **"What if the vendor's key is stolen?"** We can't prevent a malicious release, but we make it public and flag it within one poll. Key rotation and revocation are not built yet.
+- **"What if the vendor's key is stolen?"** One key is not enough: every release needs the release key and a separate approver key, and both the log and every client check both. With only one, nothing ships. If both are stolen we can't prevent it, but it is public and flagged within one poll. Key rotation and revocation are not built yet.
 - **"What does this cost the user?"** About a hundred milliseconds and about a kilobyte per update, measured in-process; a real network adds round trips.
 - **"Can you really make money? The log is open."** The idea is open on purpose, because a closed transparency log is not trusted. The money is in operating it (hosted log, a managed witness quorum, SLAs, alerting, audit evidence) the way Let's Encrypt is free while certificate vendors still sell. We have no customers yet; the next step is design partners. Chainguard's reported revenue shows the budget line exists, not that our product sells.
 - **"Is this new?"** No: Certificate Transparency, Go's checksum database, Sigstore and TUF came first. Our angle is a drop-in SDK and witness network for desktop apps and agent runtimes, plus detecting selective targeting across clients.

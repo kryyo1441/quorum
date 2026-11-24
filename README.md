@@ -6,7 +6,7 @@ The update server stops being a party you have to trust.</p>
 
 <p align="center"><img src="assets/demo.gif" alt="Quorum demo: roll out to 12 clients, swap one client's binary, fork the log, steal the vendor key, run all ten attack scenarios" width="900"></p>
 
-<p align="center"><sub>The whole demo, recorded from the running stack: a clean rollout, attack 1 (one client gets a different binary), attack 5 (the log forks one client's view), attack 4 (a stolen-key release), then all ten scenarios.</sub></p>
+<p align="center"><sub>The whole demo, recorded from the running stack: a clean rollout, attack 1 (one client gets a different binary), attack 5 (the log forks one client's view), attack 4 (a stolen-key release; recorded before two-key approval, so it shows the old detect-only behaviour: a stolen release key is now refused outright), then all ten scenarios.</sub></p>
 
 ---
 
@@ -42,9 +42,9 @@ flowchart LR
 
 1. **Publish.** The vendor signs a release entry and appends it to the log. The log signs a new head.
 2. **Witness.** Each witness checks the new head is a consistent extension of the last one it cosigned, then cosigns it. Witnesses gossip heads to each other.
-3. **Verify, before install.** The client checks: file hash, vendor signature, right app and platform (and not a downgrade), inclusion proof, log signature, at least k of n fresh witness cosignatures, no open alert. Any error, including an unreachable log or witness, blocks the install: it **fails closed**.
+3. **Verify, before install.** The client checks: file hash, vendor signature **and the separate approver signature** (two keys), right app and platform (and not a downgrade), inclusion proof, log signature, at least k of n fresh witness cosignatures, no open alert. Any error, including an unreachable log or witness, blocks the install: it **fails closed**.
 4. **Report.** Clients report what they were offered and forward the head they were shown. Two hashes for one version, or two signed heads for one tree size, raise an alert. One victim's view becomes evidence for everyone.
-5. **Monitor.** A vendor monitor tails the log and flags any release that is not on the approved list. This is what turns a stolen key into a loud failure.
+5. **Two keys, then a monitor.** Every release needs the release key **and** a separate approver key; the log refuses an entry without both, and clients re-check it. A stolen release key alone ships nothing. If both keys are stolen, a vendor monitor that tails the log flags any release not on its approved list, so even that cannot happen quietly.
 
 ## Screenshots
 
@@ -59,7 +59,7 @@ flowchart LR
 </tr>
 <tr>
 <td><img src="assets/log-verify.jpg" alt="Log explorer: an inclusion proof verified in the browser"><br><sub><b>Log explorer.</b> Pick a leaf; its inclusion proof is recomputed and verified in your browser, not on our server.</sub></td>
-<td><img src="assets/releases-unapproved.jpg" alt="Vendor console with an UNAPPROVED_RELEASE banner"><br><sub><b>Attack 4.</b> A stolen key logs a malicious release. Clients accept it, but the vendor monitor flags it within a poll: you cannot do it quietly.</sub></td>
+<td><img src="assets/releases-unapproved.jpg" alt="Vendor console with an UNAPPROVED_RELEASE banner"><br><sub><b>Attack 4b.</b> With <i>both</i> keys stolen, a malicious release gets logged and clients accept it, but the vendor monitor flags it within a poll. With the release key alone (attack 4) the log refuses it outright.</sub></td>
 </tr>
 <tr>
 <td><img src="assets/attack-scoreboard.jpg" alt="Attack panel: ten of ten scenarios as expected"><br><sub><b>Attack panel.</b> All ten threat-model scenarios, run for real, each beside what a signature-only updater does.</sub></td>
@@ -112,8 +112,9 @@ npx -y pnpm@10 --filter @uw/demo smoke                           # drives every 
 You keep your update server and installer and add one gate. See [`examples/guarded-updater`](examples/guarded-updater).
 
 ```bash
-uw keygen                                   # vendor key; register the public half with the log
-VENDOR_SECRET_KEY=... uw publish ./app.exe --app notepad-minus --version 2.1.0 \
+uw keygen                                   # release key; register the public half with the log
+uw keygen                                   # approver key: a SEPARATE key, kept by someone else
+VENDOR_SECRET_KEY=... APPROVER_SECRET_KEY=... uw publish ./app.exe --app notepad-minus --version 2.1.0 \
   --platform win-x64 --url https://cdn.example/app.exe --key-id release-2026 --log https://log.example
 ```
 
@@ -134,8 +135,8 @@ The same gate fits any auto-updating tool that runs with local privileges, inclu
 |---|---|---|---|
 | 1 | Update server swaps one client's binary | blocks locally, nobody told | `HASH_MISMATCH`; the other 11 clients are unaffected; every witness alerts |
 | 2 | Forged manifest | blocks | `BAD_VENDOR_SIG` |
-| 3 | Stolen key, release not logged | **installs** | `NOT_IN_LOG` |
-| 4 | Stolen key, release logged | **installs**, vendor never learns | accepted; monitor raises `UNAPPROVED_RELEASE` |
+| 3 | Both keys stolen, release not logged | **installs** | `NOT_IN_LOG` |
+| 4 | Stolen release key | **installs**, vendor never learns | log refuses it (403), clients `BAD_VENDOR_SIG`; with **both** keys stolen: accepted, monitor raises `UNAPPROVED_RELEASE` |
 | 5 | Log operator forks the tree | **installs** | victim blocked `INSUFFICIENT_COSIGS`; its forwarded head makes every witness raise `INCONSISTENT_STH` |
 | 6 | Downgrade replay | **installs** | `STALE_STH` (when the caller passes `expected`) |
 | 7 | One witness compromised | **installs** | still blocked at k=2 (at k=1 it would not be) |
@@ -163,7 +164,7 @@ The same gate fits any auto-updating tool that runs with local privileges, inclu
 
 ## Honest limits
 
-- **Scenario 4 is detected, not prevented.** A client that installs before the monitor polls is exposed for one poll window.
+- **Stealing both keys is detected, not prevented.** A release needs the release key and the approver key; an attacker with only one is refused by the log and by every client. An attacker with both gets a release logged and accepted, and a client that installs before the monitor polls is exposed for one poll window. Keep the two keys with different people and machines.
 - Collusion of k witnesses and the log defeats the system. The demo runs one log and three witnesses we operate ourselves.
 - Fork detection needs at least one client to be shown the fork and verify: that client forwards the log-signed head it saw to every witness. A fork shown to nobody who verifies, or at a size the real log has not reached, is not provable.
 - Downgrade protection needs the caller to configure `expected` (app, platform, installed version); without it that check is reported as skipped. Versions compare by SemVer 2.0.0 precedence.
@@ -171,9 +172,9 @@ The same gate fits any auto-updating tool that runs with local privileges, inclu
 - Witnesses decide whether the log holds a hash from the log's entry listing, which they authenticate against the head they cosigned; a listing that does not match the head is rejected and the witness fails closed.
 - Once the log is proven to have equivocated, every client fails closed until the operator is dealt with. The log operator can always do that by stopping the log.
 - A witness keeps its state in its own Postgres schema when `DATABASE_URL` is set (compose does). Without it, a restart is trust-on-first-use again.
-- No key rotation or revocation yet: after a stolen-key alert the vendor cannot yet retire the key in-band.
+- No key rotation or revocation yet: after a stolen-key alert the vendor cannot yet retire either key in-band.
 - Observations are pseudonymous and unauthenticated. That reduces but does not remove telemetry privacy concerns; alert scoping and input bounds exist so one bogus report cannot block a release for everyone or exhaust a witness.
-- The log is single-writer, only vendor-key holders can append, and there is no rate limiting.
+- The log is single-writer, only holders of both keys can append, and there is no rate limiting.
 - `DEV=1` uses public, deterministic keys: anyone can forge. Demos only.
 - An independent Codex review ran over the whole repo (no critical findings; its bugs are fixed). The adversarial suite is still written by the same authors as the code it tests.
 

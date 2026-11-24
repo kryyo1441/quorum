@@ -347,16 +347,16 @@ table.sb{width:100%;border-collapse:separate;border-spacing:0 .45rem;font-size:c
 </section>
 
 <!-- 10 · attack 4 -->
-<section class="slide" data-notes="<b>Attack 4 (live in the demo).</b> 'The vendor's signing key is stolen and the attacker logs a malicious release. We will not pretend we stop this: clients accept it, because it is signed and logged. But it is public the moment it is logged. The vendor monitor has its own approved list, which the release key cannot write to, and it flags the release within one poll. This is exactly what happened at cPGuard, and with this system it would have been loud. You can steal the key. You cannot do it quietly.'">
+<section class="slide" data-notes="<b>Attack 4 (live in the demo).</b> 'This is cPGuard: the publishing key is stolen. In Quorum a release needs two keys, the release key and a separate approver key. The attacker signs with the stolen one, and the log refuses it: nothing is logged, and every client rejects the file. The client re-checks both signatures, so even a log that skipped the check could not get it accepted. And if both keys are stolen? Then it is logged and accepted, and we say so: but it is public the moment it is logged, and the vendor monitor flags it within one poll. One stolen key ships nothing. Two stolen keys cannot ship quietly.'">
   <div class="eyebrow reveal" style="--d:0">Attack 4 · the key is stolen</div>
-  <h2 class="title reveal" style="--d:1;font-size:clamp(2rem,4.2vw,3.8rem)">You can steal the key.<br><em class="grad">You cannot do it quietly.</em></h2>
+  <h2 class="title reveal" style="--d:1;font-size:clamp(2rem,4.2vw,3.8rem)">One stolen key ships nothing.<br><em class="grad">Two cannot ship quietly.</em></h2>
   <div class="reveal" style="--d:2;margin-top:3vh"><svg viewBox="0 0 1000 230">
     <path class="draw" style="--len:900;--d:1" d="M60 110 L940 110" stroke="#2c2740" stroke-width="3" fill="none"/>
-    <g class="pop" style="--d:1"><circle cx="100" cy="110" r="12" fill="#f08a9a"/></g><text class="fade" style="--d:1;fill:#f08a9a" x="100" y="70" text-anchor="middle" font-size="15">Attacker signs a</text><text class="fade" style="--d:1;fill:#f08a9a" x="100" y="90" text-anchor="middle" font-size="15">malicious release</text>
-    <g class="pop" style="--d:3"><circle cx="330" cy="110" r="12" fill="#b9a2f2"/></g><text class="fade" style="--d:3" x="330" y="70" text-anchor="middle" font-size="15">Logged: it is now</text><text class="fade" style="--d:3" x="330" y="90" text-anchor="middle" font-size="15">public, forever</text>
-    <g class="pop" style="--d:5"><circle cx="560" cy="110" r="12" fill="#8fdcb8"/></g><text class="fade" style="--d:5" x="560" y="70" text-anchor="middle" font-size="15">Clients accept it</text><text class="fade t-mute" style="--d:5" x="560" y="90" text-anchor="middle" font-size="13">detected, not prevented</text>
-    <g class="pop" style="--d:7"><circle cx="820" cy="110" r="14" fill="#f08a9a"/><circle class="blink" cx="820" cy="110" r="24" fill="none" stroke="#f08a9a"/></g><text class="fade" style="--d:7;fill:#f08a9a" x="820" y="62" text-anchor="middle" font-size="16">UNAPPROVED_RELEASE</text><text class="fade t-mute" style="--d:7" x="820" y="84" text-anchor="middle" font-size="13">monitor alerts within one poll</text>
-    <text class="fade t-mute" style="--d:8" x="450" y="190" text-anchor="middle" font-size="14">The monitor's approved list needs a token the release key does not have.</text>
+    <g class="pop" style="--d:1"><circle cx="100" cy="110" r="12" fill="#f08a9a"/></g><text class="fade" style="--d:1;fill:#f08a9a" x="100" y="70" text-anchor="middle" font-size="15">Stolen release key</text><text class="fade" style="--d:1;fill:#f08a9a" x="100" y="90" text-anchor="middle" font-size="15">signs a release</text>
+    <g class="pop" style="--d:3"><circle cx="330" cy="110" r="12" fill="#b9a2f2"/></g><text class="fade" style="--d:3" x="330" y="70" text-anchor="middle" font-size="15">Log refuses it: no</text><text class="fade" style="--d:3" x="330" y="90" text-anchor="middle" font-size="15">approver signature</text>
+    <g class="pop" style="--d:5"><circle cx="560" cy="110" r="12" fill="#8fdcb8"/></g><text class="fade" style="--d:5" x="560" y="70" text-anchor="middle" font-size="15">Every client blocks it</text><text class="fade t-mute" style="--d:5" x="560" y="90" text-anchor="middle" font-size="13">BAD_VENDOR_SIG</text>
+    <g class="pop" style="--d:7"><circle cx="820" cy="110" r="14" fill="#f08a9a"/><circle class="blink" cx="820" cy="110" r="24" fill="none" stroke="#f08a9a"/></g><text class="fade" style="--d:7;fill:#f08a9a" x="820" y="62" text-anchor="middle" font-size="16">Both keys stolen?</text><text class="fade t-mute" style="--d:7" x="820" y="84" text-anchor="middle" font-size="13">logged, but the monitor alerts in one poll</text>
+    <text class="fade t-mute" style="--d:8" x="450" y="190" text-anchor="middle" font-size="14">Two keys, held apart. The monitor's approved list needs a third secret neither key has.</text>
   </svg></div>
 </section>
 
@@ -368,8 +368,8 @@ table.sb{width:100%;border-collapse:separate;border-spacing:0 .45rem;font-size:c
     <tr style="--r:0"><th>Attack</th><th>Signature-only updater</th><th>Quorum</th></tr>
     <tr style="--r:1"><td>1 · Swap one client's binary</td><td class="x">blocks locally, nobody told</td><td class="v">HASH_MISMATCH · all witnesses alert</td></tr>
     <tr style="--r:2"><td>2 · Forged manifest</td><td>blocks</td><td class="v">BAD_VENDOR_SIG</td></tr>
-    <tr style="--r:3"><td>3 · Stolen key, not logged</td><td class="x">installs</td><td class="v">NOT_IN_LOG</td></tr>
-    <tr style="--r:4"><td>4 · Stolen key, logged</td><td class="x">installs, vendor never knows</td><td class="v">monitor: UNAPPROVED_RELEASE</td></tr>
+    <tr style="--r:3"><td>3 · Both keys stolen, not logged</td><td class="x">installs</td><td class="v">NOT_IN_LOG</td></tr>
+    <tr style="--r:4"><td>4 · Stolen release key</td><td class="x">installs, vendor never knows</td><td class="v">log refuses · BAD_VENDOR_SIG</td></tr>
     <tr style="--r:5"><td>5 · Log forks the tree</td><td class="x">installs</td><td class="v">blocked · INCONSISTENT_STH</td></tr>
     <tr style="--r:6"><td>6 · Downgrade replay</td><td class="x">installs</td><td class="v">STALE_STH</td></tr>
     <tr style="--r:7"><td>7 · One witness compromised</td><td class="x">installs</td><td class="v">blocked at k = 2</td></tr>
@@ -380,7 +380,7 @@ table.sb{width:100%;border-collapse:separate;border-spacing:0 .45rem;font-size:c
 </section>
 
 <!-- 12 · numbers -->
-<section class="slide" data-notes="<b>Say:</b> 'Some numbers, honestly measured. Verification takes about a hundred milliseconds in process and a hundred and twenty to two hundred on a real localhost stack, almost all of it network round trips. Overhead is about a kilobyte per update. A hundred and twenty-five tests. And an independent Codex review, twice, whose findings we fixed.' <b>Say 'in-process' out loud.</b>">
+<section class="slide" data-notes="<b>Say:</b> 'Some numbers, honestly measured. Verification takes about a hundred milliseconds in process and a hundred and twenty to two hundred on a real localhost stack, almost all of it network round trips. Overhead is about a kilobyte per update. A hundred and thirty-six tests. And an independent Codex review, twice, whose findings we fixed.' <b>Say 'in-process' out loud.</b>">
   <div class="eyebrow reveal" style="--d:0">By the numbers</div>
   <h2 class="title reveal" style="--d:1;font-size:clamp(1.8rem,3.6vw,3.2rem)">Fast enough to sit in the update path.</h2>
   <div class="grid cols4" style="margin-top:4vh;gap:1.6rem">
@@ -389,7 +389,7 @@ table.sb{width:100%;border-collapse:separate;border-spacing:0 .45rem;font-size:c
     <div class="reveal" style="--d:4"><div class="stat">~<span class="count" data-to="1">0</span><small>KB</small></div><div class="stat-l">proofs + head per update</div></div>
     <div class="reveal" style="--d:5"><div class="stat">~<span class="count" data-to="500">0</span><small>/s</small></div><div class="stat-l">log appends (in-process)</div></div>
     <div class="reveal" style="--d:6"><div class="stat"><span class="count" data-to="8">0</span></div><div class="stat-l">checks before every install</div></div>
-    <div class="reveal" style="--d:7"><div class="stat"><span class="count" data-to="125">0</span></div><div class="stat-l">automated tests, incl. real Postgres</div></div>
+    <div class="reveal" style="--d:7"><div class="stat"><span class="count" data-to="136">0</span></div><div class="stat-l">automated tests, incl. real Postgres</div></div>
     <div class="reveal" style="--d:8"><div class="stat"><span class="count" data-to="2">0</span></div><div class="stat-l">independent Codex reviews, all findings fixed</div></div>
     <div class="reveal" style="--d:9"><div class="stat"><span class="count" data-to="0">0</span></div><div class="stat-l">installs after any error: it fails closed</div></div>
   </div>
@@ -397,14 +397,14 @@ table.sb{width:100%;border-collapse:separate;border-spacing:0 .45rem;font-size:c
 </section>
 
 <!-- 13 · limits -->
-<section class="slide" data-notes="<b>Say:</b> 'We would rather you hear the limits from us. Attack 4 is detected, not prevented. If the log and enough witnesses collude, it fails; our demo witnesses are all run by us, which is why the next step is recruiting independent operators. A fork is only provable if someone shown it verifies. And there is no key rotation yet.' Judges trust people who say this.">
+<section class="slide" data-notes="<b>Say:</b> 'We would rather you hear the limits from us. If both signing keys are stolen, the release is detected, not prevented. If the log and enough witnesses collude, it fails; our demo witnesses are all run by us, which is why the next step is recruiting independent operators. A fork is only provable if someone shown it verifies. And there is no key rotation yet.' Judges trust people who say this.">
   <div class="eyebrow reveal" style="--d:0">Honest limits</div>
   <h2 class="title reveal" style="--d:1;font-size:clamp(1.8rem,3.6vw,3.2rem)">What this does <em class="grad">not</em> do.</h2>
   <div class="grid cols2" style="margin-top:3vh">
-    <div class="card reveal" style="--d:2"><b>Detected, not prevented.</b><p class="muted" style="margin-top:.4rem">A stolen-key release is accepted until the monitor's next poll.</p></div>
+    <div class="card reveal" style="--d:2"><b>Both keys stolen: detected, not prevented.</b><p class="muted" style="margin-top:.4rem">One key is refused. With both, a release is accepted until the monitor's next poll.</p></div>
     <div class="card reveal" style="--d:3"><b>Collusion defeats it.</b><p class="muted" style="margin-top:.4rem">k witnesses plus the log. Our demo witnesses are all ours: independence is the next milestone.</p></div>
     <div class="card reveal" style="--d:4"><b>A fork must be shown to someone who verifies.</b><p class="muted" style="margin-top:.4rem">That client forwards the head; a fork nobody sees is not provable.</p></div>
-    <div class="card reveal" style="--d:5"><b>No key rotation or revocation yet.</b><p class="muted" style="margin-top:.4rem">After a stolen-key alert the vendor cannot retire the key in-band.</p></div>
+    <div class="card reveal" style="--d:5"><b>No key rotation or revocation yet.</b><p class="muted" style="margin-top:.4rem">After a stolen-key alert the vendor cannot retire a key in-band.</p></div>
     <div class="card reveal" style="--d:6"><b>Freshness is on witness heartbeats.</b><p class="muted" style="margin-top:.4rem">A log can freeze its head; independent witnesses and <span class="mono">expected</span> narrow, not remove, that.</p></div>
     <div class="card reveal" style="--d:7"><b>Telemetry privacy.</b><p class="muted" style="margin-top:.4rem">Observations are pseudonymous, which reduces but does not remove the concern.</p></div>
   </div>

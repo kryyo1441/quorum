@@ -11,7 +11,7 @@ Slide-by-slide text. Every incident claim below was checked against the sources 
 | **Notepad++** (June 2025, disclosed Feb 2026) | Updater traffic hijacked via the hosting provider; only a subset of users got malicious installers | #1 targeted swap, #2 forged manifest: the targeted file is not the logged file; the other users' view exposes it |
 | **eScan** (20 Jan 2026) | A regional update server pushed a malicious replacement for about two hours; reports say the packages carried a valid-looking signature (eScan disputes parts of the account) | #3 / #4: a signed release that is not in the log, or is in the log and flagged |
 | **AOMEI Backupper** (May to July 2026) | Update files tampered for **5 to 10 minutes at a time**; the app did not cryptographically verify them | #1, #10: a short window still leaves a different hash for the same version, which witnesses see |
-| **cPGuard** (2 Nov 2026) | Fake versions 5.88.12 to 5.88.19 uploaded with a **stolen update-publishing key**; about 2,950 servers, root privileges | #4 stolen key, release logged: cannot be done quietly, the monitor fires |
+| **cPGuard** (2 Nov 2026) | Fake versions 5.88.12 to 5.88.19 uploaded with a **stolen update-publishing key**; about 2,950 servers, root privileges | #4 stolen release key: refused by the log and every client (two keys). #4b both keys: cannot be done quietly, the monitor fires |
 
 Line for the slide: *"Several were selective. Researchers reproducing the issue saw nothing."* (AOMEI: minutes-long windows. Notepad++: a subset of users.)
 
@@ -31,8 +31,8 @@ Ten scenarios, each run against Quorum and against a **signature-only updater** 
 |---|---|---|---|
 | 1 | Swap one client's binary | blocks locally, nobody told | `HASH_MISMATCH`, all witnesses alert |
 | 2 | Forged manifest | blocks | `BAD_VENDOR_SIG` |
-| 3 | Stolen key, not logged | **installs** | `NOT_IN_LOG` |
-| 4 | Stolen key, logged | **installs**, vendor never learns | accepted, monitor alerts `UNAPPROVED_RELEASE` |
+| 3 | Both keys stolen, not logged | **installs** | `NOT_IN_LOG` |
+| 4 | Stolen release key | **installs**, vendor never learns | log refuses (403), clients `BAD_VENDOR_SIG`; both keys stolen: accepted, monitor alerts `UNAPPROVED_RELEASE` |
 | 5 | Log forks one client's view | **installs** | victim blocked, witnesses raise `INCONSISTENT_STH` |
 | 6 | Downgrade | **installs** | `STALE_STH` |
 | 7 | One witness compromised | **installs** | blocked at k=2 |
@@ -44,7 +44,7 @@ Numbers (README, in-process): about 98 ms median verification, about 850 bytes o
 
 ## 5. Honest limits (put them on a slide; judges trust this)
 
-- Scenario 4 is **detected, not prevented**: exposure lasts one monitor poll.
+- With **both** signing keys stolen, a release is **detected, not prevented**: exposure lasts one monitor poll. One key alone ships nothing.
 - k witnesses colluding with the log defeats it. The demo's witnesses are all ours.
 - Witnesses learn of a fork only if a client shown the fork verifies and forwards the head.
 - Downgrade protection needs the app to pass `expected`.

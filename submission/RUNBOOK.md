@@ -15,18 +15,18 @@ npx -y pnpm@10 env:init        # writes a gitignored .env with FRESH keys (refus
 docker compose up --build      # first run builds one image (a few minutes), then starts everything
 ```
 
-**What `env:init` does.** Generates the log's signing key, the vendor's release key, three witness keys, a monitor token and an admin token. Every service refuses to start without its keys, so nothing runs on shared or default secrets.
+**What `env:init` does.** Generates the log's signing key, the vendor's release key, the separate approver key, three witness keys, a monitor token and an admin token. Every service refuses to start without its keys, so nothing runs on shared or default secrets.
 
 **What `docker compose up` starts.**
 
 | Container | Port | Its job in the demo |
 |---|---|---|
 | `postgres` | 5432 | Stores the log's leaves and heads, and each witness's own state (schemas `witness_w1`…`w3`) |
-| `log-server` | 4000 | The public append-only log. Only accepts entries signed by a registered vendor key; stores witness cosignatures on each head |
+| `log-server` | 4000 | The public append-only log. Only accepts entries signed by a registered vendor key **and** the approver key; stores witness cosignatures on each head |
 | `witness-1/2/3` | 4101–4103 | Poll the log, check each new head is a consistent extension of the last, cosign it, gossip to each other, index what clients report |
 | `monitor` | 4300 | Tails the log; raises `UNAPPROVED_RELEASE` for anything not on the vendor's approved list |
 | `update-server` | 4001 | The vendor's normal update server, **deliberately attackable** |
-| `demo` | 4200 | Plays the 12 clients and the attacker. Holds the vendor key, the log key and database access *because the attacker needs them*. Not for exposure to the internet |
+| `demo` | 4200 | Plays the 12 clients and the attacker. Holds the vendor and approver keys (to publish honestly, and to play the attacker in 4 and 4b), the log key and database access. Not for exposure to the internet |
 | `seed` | (exits) | One-shot: publishes `notepad-minus 2.1.0` and waits for two witness cosignatures |
 | `web` | 3000 | The dashboard |
 
@@ -89,11 +89,16 @@ Results stream back one tile at a time.
 **You see:** tile 3 red with `INSUFFICIENT_COSIGS` (0 valid cosignatures, need 2); every other tile red with `SPLIT_VIEW`; `INCONSISTENT_STH` alerts on all witnesses with both heads as evidence.
 **Under the hood:** the demo server plays a **malicious log operator** (it holds the log's signing key and a stolen vendor key). It starts a second log on port 4400, appends a different release, and shows *only client 3* that log. Client 3's checks on that fork *pass* for the inclusion proof and log signature, because the operator signed it, but the head carries **no witness cosignatures** (they cannot be copied: a cosignature signs the exact root). So client 3 is blocked. Before checking alerts, client 3 **forwards the head it was shown** to the witnesses: they now hold two log-signed heads for the same tree size with different roots, which is proof the log equivocated. They raise `INCONSISTENT_STH`, and because the log is provably untrustworthy, **every** client fails closed (`SPLIT_VIEW`) until the operator is dealt with. One victim's view became evidence for everyone.
 
-### Step 5: Attack 4, a stolen key (45 s)
-**Do:** *Reset everything*. Click **4 · stolen-key release**. Open **Releases**.
+### Step 5: Attack 4, a stolen release key (45 s)
+**Do:** *Reset everything*. Click **4 · stolen release key**, then *Roll out*.
+**You see:** every tile red with `BAD_VENDOR_SIG`; expand one and the "Vendor and approver signatures valid (two keys)" row is the one that failed. The live feed says the log **refused** the release (HTTP 403). The tree size on **Log** does not change.
+**Under the hood:** a release needs two signatures: the vendor's **release key** and a separate **approver key**. The demo server signs a malicious `2.2.0` with the release key only (that is the key it "stole"), uploads it to the update server and tries to append it. The log checks the approver signature and answers 403, so nothing is logged. The update server still hands the file to every client, and each client rejects it at the signature check: it re-checks the approval itself, so a log that skipped the check could not get it installed either.
+
+### Step 5b (optional): Attack 4b, both keys stolen (45 s)
+**Do:** *Reset everything*. Click **4b · both keys stolen**. Open **Releases**.
 **You see:** a red `UNAPPROVED_RELEASE` banner for `notepad-minus 2.2.0`, with an *unapproved* badge on its row.
-**Under the hood:** the demo server signs a malicious `2.2.0` with the vendor key, uploads it to the update server and appends it to the log. The log **accepts it**, because the signature is valid. Witnesses cosign the new head. A client rollout now **accepts** it: attack 4 is *detected, not prevented*. The **monitor**, polling every two seconds, authenticates the log's listing against the signed head, sees an entry that is not on its approved list and raises `UNAPPROVED_RELEASE`. The approved list needs a token the vendor *release key does not have*, so the attacker cannot approve their own release. Clicking the badge approves it (that is the vendor's decision after review).
-Note: the log is append-only, so this entry **stays** after *Reset*. Approve it to dismiss the alert, or `docker compose down -v` for a clean slate.
+**Under the hood:** now the demo server signs the malicious `2.2.0` with **both** keys, uploads it to the update server and appends it to the log. The log **accepts it**, because both signatures are valid. Witnesses cosign the new head. A client rollout now **accepts** it: with both keys stolen, the release is *detected, not prevented*. The **monitor**, polling every two seconds, authenticates the log's listing against the signed head, sees an entry that is not on its approved list and raises `UNAPPROVED_RELEASE`. The approved list needs a token *neither signing key gives you*, so the attacker cannot approve their own release. Clicking the badge approves it (that is the vendor's decision after review).
+Note: the log is append-only, so this 4b entry **stays** after *Reset* (attack 4 adds nothing). Approve it to dismiss the alert, or `docker compose down -v` for a clean slate.
 
 ### Step 6: All ten scenarios (45 s)
 **Do:** **Attack** → *Run all 10*.
@@ -127,9 +132,9 @@ Note: the log is append-only, so this entry **stays** after *Reset*. Approve it 
 | Fleet shows an error banner | A service is down | `docker compose ps -a`; `docker compose up -d` |
 | Every tile red on a plain rollout | An earlier attack 5 is still armed | *Reset everything* |
 | `INSUFFICIENT_COSIGS` right after a fresh start | Witnesses have not cosigned yet | Wait 2 to 5 seconds and roll out again (`seed` waits for this, but a restart can lag) |
-| Attack 4 shows no banner | The monitor polls every 2 s | Wait a moment, refresh **Releases** |
+| Attack 4b shows no banner | The monitor polls every 2 s | Wait a moment, refresh **Releases** |
 | Attack 9 says "no database to tamper with" | Running the in-memory dev stack | Use `docker compose up` (Postgres) |
-| Alerts remain after *Reset* | Attack 4's entry is permanent in the log | Approve it on **Releases**, or wipe with `down -v` |
+| Alerts remain after *Reset* | Attack 4b's entry is permanent in the log | Approve it on **Releases**, or wipe with `down -v` |
 | Page cannot reach services from another machine | `/verify` calls the log and witnesses from the *browser* at `localhost` | Open the dashboard on the same machine that runs the stack |
 
 Never run the demo with `DEV=1` in front of an audience: that mode uses **public** keys that anyone can derive.
@@ -139,6 +144,6 @@ Never run the demo with `DEV=1` in front of an audience: that mode uses **public
 1. Fleet all green, one tile expanded to the eight checks.
 2. Attack 1: tile 7 red, then the witnesses' alerts.
 3. Attack 5: tile 3 red, then an `INCONSISTENT_STH` alert with its evidence open.
-4. Attack 4: the unapproved banner on **Releases**.
+4. Attack 4: every tile red with `BAD_VENDOR_SIG` (the log refused the release). Optionally 4b: the unapproved banner on **Releases**.
 5. **Attack** with all ten results and the red signature-only lines.
 6. **Verify** with a pasted hash, every row passing.

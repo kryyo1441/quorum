@@ -57,7 +57,7 @@ export const SCENARIOS: { n: number; name: string; attack: string; expected: str
       const okSet = (v: Verdict) => !v.ok && (v.reason === "BAD_VENDOR_SIG" || v.reason === "NOT_IN_LOG");
       return { naive: naive(w, EVIL, forgedByAttacker), actual: `${reasonOf(a.verdict)} / ${reasonOf(b.verdict)}`, pass: okSet(a.verdict) && okSet(b.verdict), evidence: [`attacker-signed: ${why(a.verdict)}`, `hash swapped in genuine manifest: ${why(b.verdict)}`] };
     } },
-  { n: 3, name: "Stolen key, release not logged", attack: "Attacker holds the vendor key, signs a malicious release, never logs it", expected: "NOT_IN_LOG",
+  { n: 3, name: "Stolen keys, release not logged", attack: "Attacker holds both signing keys, signs a malicious release, never logs it", expected: "NOT_IN_LOG",
     run: async (w) => {
       await publish(w.env);
       const evilEntry = makeEntry(w.env, EVIL, "2.2.0"); // validly vendor-signed, hash matches
