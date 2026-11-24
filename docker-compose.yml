@@ -78,7 +78,7 @@ services:
     environment: &demoenv
       PORT: 4200
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
-      # the demo server PLAYS THE ATTACKER (stolen vendor key, malicious log operator, database access) for attacks 4, 5 and 9
+      # the demo server PLAYS THE ATTACKER (stolen release key, or both signing keys; malicious log operator; database access) for attacks 4, 4b, 5 and 9
       LOG_SECRET_KEY: ${LOG_SECRET_KEY:?run `pnpm env:init` first}
       DATABASE_URL: "postgresql://uw:uw@postgres:5432/uw"
       UPDATE_URL: http://update-server:4001

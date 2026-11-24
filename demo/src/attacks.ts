@@ -20,7 +20,7 @@ export function liveAttacks(env: Env, o: { logSecret?: string; logId?: string; d
     logFor: (id: string) => (fork?.client === id ? fork.url : undefined),
     state: () => ({ fork: fork ? { client: fork.client } : null, stolenReleases: [...stolen], tampered: tampered?.idx ?? null }),
 
-    /** Attack 5: the log operator (holds the log key, and a stolen vendor key) shows ONE client a forked tree with a release the public log never has. */
+    /** Attack 5: the log operator (holds the log key, and BOTH stolen signing keys: the worst case) shows ONE client a forked tree with a release the public log never has. */
     async fork(client: string) {
       if (!logSecret) throw new Error("LOG_SECRET_KEY is needed to play the malicious operator");
       closeFork();
