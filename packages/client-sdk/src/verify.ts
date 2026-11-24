@@ -1,7 +1,7 @@
 // verifyUpdate per SPEC §7.2. Browser-safe (no node imports). Never throws: every error is a failed check (fail closed).
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { leafHashOfEntry, verifyCosig, verifyEntry, verifyInclusion, verifyLogSig } from "@uw/log-core";
+import { leafHashOfEntry, verifyApproval, verifyCosig, verifyEntry, verifyInclusion, verifyLogSig } from "@uw/log-core";
 import { ReleaseEntry as ReleaseEntrySchema, STH, type FailReason, type Observation, type ReleaseEntry } from "@uw/shared";
 
 export interface VerifyConfig {
@@ -9,6 +9,9 @@ export interface VerifyConfig {
   witnesses: { id: string; url: string; publicKey: string }[];
   threshold: number;          // k of n cosignatures, default 2. Must be an integer in 1..n.
   vendorPublicKeys: Record<string, string>;
+  /** Amendment 13: the SECOND key. When set, every release must carry its signature, so a stolen release key alone cannot ship an update. `parseTrust` REQUIRES it (and that it differs from every vendor key);
+   *  a hand-built config that omits it runs in the old single-key mode, and the check says so ("not checked") instead of passing silently. */
+  approverPublicKey?: string;
   logPublicKey: string;
   maxAgeMs?: number;          // human-approved addition (docs/spec-amendments.md): default 24h, demo 5 min. Must be finite and > 0.
   /** Human-approved addition (2026-11-22). What this install is: pins app + platform and (optionally) blocks downgrades.
@@ -28,7 +31,7 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 const IDS: CheckId[] = ["hash", "vendorSig", "target", "inclusion", "logSig", "cosigs", "fresh", "noSplitView"];
 const LABELS: Record<CheckId, string> = {
-  hash: "File hash matches the manifest", vendorSig: "Vendor signature valid for a known key",
+  hash: "File hash matches the manifest", vendorSig: "Vendor and approver signatures valid (two keys)",
   target: "Release is for this install and newer than the installed version",
   inclusion: "Inclusion proof verifies against the head", logSig: "Head is signed by the log",
   cosigs: "Head has enough valid witness cosignatures", fresh: "Enough cosignatures are fresh", noSplitView: "No open split-view alert",
@@ -85,7 +88,10 @@ export async function checkUpdate(binary: Uint8Array, manifest: ReleaseEntry, cf
   // 2. vendor signature
   const vk = Object.hasOwn(cfg.vendorPublicKeys, manifest.vendorKeyId) ? cfg.vendorPublicKeys[manifest.vendorKeyId] : undefined;
   if (!vk) fail("vendorSig", "BAD_VENDOR_SIG", `unknown vendor key id "${manifest.vendorKeyId}"`);
-  else verifyEntry(manifest, vk) ? add("vendorSig", "pass") : fail("vendorSig", "BAD_VENDOR_SIG", "signature does not verify");
+  else if (!verifyEntry(manifest, vk)) fail("vendorSig", "BAD_VENDOR_SIG", "signature does not verify");
+  else if (cfg.approverPublicKey === undefined) add("vendorSig", "pass", undefined, "approver signature NOT CHECKED: no approverPublicKey configured (single-key mode)");
+  else if (!verifyApproval(manifest, cfg.approverPublicKey)) fail("vendorSig", "BAD_VENDOR_SIG", "vendor signature is valid but the approver's second signature is missing or invalid: a release needs both keys");
+  else add("vendorSig", "pass");
 
   // 2b. target: every release ever logged keeps a valid proof against every later head, so without this a downgrade verifies (§10 #6).
   const ex = cfg.expected;

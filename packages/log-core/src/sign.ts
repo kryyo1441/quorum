@@ -22,11 +22,14 @@ function dec(s: string, len: number): Uint8Array {
 export const devSecret = (purpose: string) => enc(sha256(new TextEncoder().encode(`uw-dev-key/${purpose}`)));
 
 export type Unsigned<T, K extends keyof T> = Omit<T, K>;
+type Body = Omit<ReleaseEntry, "vendorSig" | "approverSig">;
 export type STHBody = Pick<STH, "logId" | "treeSize" | "rootHash" | "timestamp">;
 export type Cosig = STH["cosigs"][number];
 
 // ---- payloads: exactly what gets signed ----
-export const entryPayload = (e: Unsigned<ReleaseEntry, "vendorSig">) => canonicalBytes(e);
+export const entryPayload = (e: Body) => canonicalBytes(e);
+/** The approver signs the vendor-signed entry under a domain tag, so a vendor signature can never be replayed as an approval (and vice versa). */
+export const approvalPayload = (e: Omit<ReleaseEntry, "approverSig">) => canonicalBytes({ kind: "approve", ...e });
 export const sthPayload = (s: STHBody) => canonicalBytes({ logId: s.logId, rootHash: s.rootHash, timestamp: s.timestamp, treeSize: s.treeSize });
 /** Cosig also binds the witness id and the cosig timestamp, with a domain-separation tag so it can never be replayed as a log signature. */
 export const cosigPayload = (s: STHBody, witnessId: string, timestamp: string) =>
@@ -47,8 +50,12 @@ const verify = (sig: string, msg: Uint8Array, pub: string) => {
   } catch { return false; }
 };
 
-export const signEntry = (e: Unsigned<ReleaseEntry, "vendorSig">, vendorSecret: string): ReleaseEntry => ({ ...e, vendorSig: sign(entryPayload(e), vendorSecret) });
-export const verifyEntry = (e: ReleaseEntry, vendorPublic: string) => { const { vendorSig, ...rest } = e; return verify(vendorSig, entryPayload(rest), vendorPublic); };
+export const signEntry = (e: Body, vendorSecret: string): ReleaseEntry => ({ ...e, vendorSig: sign(entryPayload(e), vendorSecret) });
+/** Vendor signature only (the approval is checked separately, see verifyApproval). */
+export const verifyEntry = (e: ReleaseEntry, vendorPublic: string) => { const { vendorSig, approverSig: _a, ...rest } = e; return verify(vendorSig, entryPayload(rest), vendorPublic); };
+/** Second signature, by a SEPARATE key: stealing the release key alone cannot log a release. */
+export const approveEntry = (e: ReleaseEntry, approverSecret: string): ReleaseEntry => { const { approverSig: _a, ...rest } = e; return { ...rest, approverSig: sign(approvalPayload(rest), approverSecret) }; };
+export const verifyApproval = (e: ReleaseEntry, approverPublic: string) => { const { approverSig, ...rest } = e; return approverSig !== undefined && verify(approverSig, approvalPayload(rest), approverPublic); };
 
 export const signSTH = (b: STHBody, logSecret: string): STH => ({ ...b, logSig: sign(sthPayload(b), logSecret), cosigs: [] });
 export const verifyLogSig = (s: STH, logPublic: string) => verify(s.logSig, sthPayload(s), logPublic);

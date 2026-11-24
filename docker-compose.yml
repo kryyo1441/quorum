@@ -23,6 +23,7 @@ services:
       DATABASE_URL: "postgresql://uw:uw@postgres:5432/uw"
       LOG_SECRET_KEY: ${LOG_SECRET_KEY:?run `pnpm env:init` first}
       VENDOR_PUBLIC_KEYS: ${VENDOR_PUBLIC_KEYS:?run `pnpm env:init` first}
+      APPROVER_PUBLIC_KEY: ${APPROVER_PUBLIC_KEY:?run `pnpm env:init` first (an older .env lacks the approver keys, delete it and rerun)}
       WITNESS_PUBLIC_KEYS: ${WITNESS_PUBLIC_KEYS:?run `pnpm env:init` first}
     ports: ["4000:4000"]
     depends_on: { postgres: { condition: service_healthy } }
@@ -90,6 +91,9 @@ services:
       VENDOR_KEY_ID: ${VENDOR_KEY_ID:?run `pnpm env:init` first}
       VENDOR_SECRET_KEY: ${VENDOR_SECRET_KEY:?run `pnpm env:init` first}
       VENDOR_PUBLIC_KEYS: ${VENDOR_PUBLIC_KEYS:?run `pnpm env:init` first}
+      # the honest publish flow needs the approver key too; attack 4 deliberately signs with the release key alone, attack 4b with both
+      APPROVER_SECRET_KEY: ${APPROVER_SECRET_KEY:?run `pnpm env:init` first (an older .env lacks the approver keys, delete it and rerun)}
+      APPROVER_PUBLIC_KEY: ${APPROVER_PUBLIC_KEY:?run `pnpm env:init` first (an older .env lacks the approver keys, delete it and rerun)}
     ports: ["4200:4200"]
     depends_on: [log-server, update-server, witness-1, witness-2, witness-3, monitor]
 
@@ -109,6 +113,8 @@ services:
     environment:
       VENDOR_KEY_ID: ${VENDOR_KEY_ID:?run `pnpm env:init` first}
       VENDOR_SECRET_KEY: ${VENDOR_SECRET_KEY:?run `pnpm env:init` first}
+      APPROVER_SECRET_KEY: ${APPROVER_SECRET_KEY:?run `pnpm env:init` first (an older .env lacks the approver keys, delete it and rerun)}
+      APPROVER_PUBLIC_KEY: ${APPROVER_PUBLIC_KEY:?run `pnpm env:init` first (an older .env lacks the approver keys, delete it and rerun)}
       LOG_URL: http://log-server:4000
       WITNESS_URLS: http://witness-1:4101,http://witness-2:4102,http://witness-3:4103
       MONITOR_URL: http://monitor:4300

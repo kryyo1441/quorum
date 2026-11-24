@@ -180,3 +180,48 @@ test("version precedence follows SemVer 2.0.0, including numeric prerelease iden
   expect(compareVersions("99999999999999999999999.0.0", "1.0.0")).toBeGreaterThan(0);   // no NaN
   for (const bad of ["1.0", "01.0.0", "1.0.0-", "1.0.0-01", "v1.0.0", ""]) expect(compareVersions(bad, "1.0.0")).toBeUndefined();
 });
+
+// ---- amendment 13: two keys. Entries are built here (the frozen fixtures predate the approver key) and served by a one-entry log. ----
+import { approveEntry, signSTH } from "@uw/log-core";
+const approver = generateKeypair(), other = generateKeypair();
+const BIN = new TextEncoder().encode("two-key release");
+const body = { app: "a", version: "2.0.0", platform: "win-x64" as const, sha256: bytesToHex(sha256(BIN)), size: BIN.length, url: "u", publishedAt: "2026-01-01T00:00:00.000Z", vendorKeyId: "vendor" };
+/** A log with exactly this entry in it (tree of one: the root is the leaf hash, the proof is empty), cosigned by w1 and w2. */
+function oneEntryWorld(entry: any): Deps {
+  const root = leafHashOfEntry(entry);
+  const sth = { ...signSTH({ logId: "fixture-log", treeSize: 1, rootHash: root, timestamp: "2026-01-01T00:01:00.000Z" }, v.keys.log.secretKey) };
+  sth.cosigs = ["w1", "w2"].map((id) => cosign(sth, id, v.keys[id].secretKey, "2026-01-01T00:01:30.000Z"));
+  const f = async (input: any) => {
+    const u = new URL(String(input)), json = (b: unknown) => new Response(JSON.stringify(b));
+    if (u.host === "log" && u.pathname === "/sth") return json(sth);
+    if (u.host === "log" && u.pathname === "/proof") return json({ leafIndex: 0, treeSize: 1, path: [] });
+    if (u.pathname === "/alerts") return json([]);
+    return json({}, 404);
+  };
+  return { fetch: f as typeof fetch, now: () => NOW };
+}
+const twoKey = () => cfg({ vendorPublicKeys: { vendor: v.keys.vendor.publicKey }, approverPublicKey: approver.publicKey });
+const vendorSigned = () => signEntry(body, v.keys.vendor.secretKey);
+test("two keys: a release signed by the release key AND the approver verifies", async () => {
+  const e = approveEntry(vendorSigned(), approver.secretKey);
+  expect(await verifyUpdate(BIN, e, twoKey(), oneEntryWorld(e))).toMatchObject({ ok: true });
+});
+test("two keys: the release key alone is rejected even when the log serves it with a valid proof (a log that skips the check cannot get it accepted)", async () => {
+  const e = vendorSigned();
+  const r = await verifyUpdate(BIN, e, twoKey(), oneEntryWorld(e));
+  expect(r).toMatchObject({ ok: false, reason: "BAD_VENDOR_SIG" });
+  expect((r as any).detail).toMatch(/second signature|both keys/);
+});
+test("two keys: an approval by any other key, by the release key itself, or over a different entry is rejected", async () => {
+  for (const e of [approveEntry(vendorSigned(), other.secretKey), approveEntry(vendorSigned(), v.keys.vendor.secretKey),
+    { ...approveEntry(vendorSigned(), approver.secretKey), version: "9.9.9" }]) {
+    expect(await verifyUpdate(BIN, e as any, twoKey(), oneEntryWorld(e)), JSON.stringify(e.approverSig)).toMatchObject({ ok: false });
+  }
+  // an approval copied from another release does not transfer
+  const a = approveEntry(vendorSigned(), approver.secretKey), b = { ...vendorSigned(), sha256: "b".repeat(64) };
+  expect(await verifyUpdate(BIN, { ...b, approverSig: a.approverSig } as any, twoKey(), oneEntryWorld(b))).toMatchObject({ ok: false });
+});
+test("single-key mode (no approverPublicKey) is allowed for hand-built configs but says it did not check", async () => {
+  const r = await checkUpdate(BIN, vendorSigned(), cfg({ vendorPublicKeys: { vendor: v.keys.vendor.publicKey } }), oneEntryWorld(vendorSigned()));
+  expect(r.checks.find((c) => c.id === "vendorSig")).toMatchObject({ status: "pass", detail: expect.stringContaining("NOT CHECKED") });
+});

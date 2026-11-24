@@ -33,13 +33,16 @@ export function liveAttacks(env: Env, o: { logSecret?: string; logId?: string; d
       fork = { client, url, server };
     },
 
-    /** Attack 4: a stolen vendor key signs a malicious 2.2.0 and logs it. Clients accept it; only the monitor (which has its own approved list) objects. */
-    async stolenKey() {
-      const e = makeEntry(env, EVIL, "2.2.0");
+    /** Attack 4: a stolen RELEASE key signs a malicious 2.2.0 and tries to log it. A release needs a second key (the approver's), so the log refuses it and every client rejects the unlogged file.
+     *  With `bothKeys` the attacker also holds the approver key: the log accepts it, clients accept it, and only the monitor (its own approved list, its own token) objects. */
+    async stolenKey(bothKeys = false) {
+      const e = makeEntry(env, EVIL, "2.2.0", { approve: bothKeys });
       await ok("update server", await env.fetch(`${env.updateUrl}/admin/release`, { method: "POST", body: JSON.stringify({ entry: e, binary: Buffer.from(EVIL).toString("base64") }) }));
-      const r = await ok("log", await env.fetch(`${env.logUrl}/entries`, { method: "POST", body: JSON.stringify(e) }));
       stolen.add(e.version);
+      const r = await env.fetch(`${env.logUrl}/entries`, { method: "POST", body: JSON.stringify(e) });
+      if (!r.ok) return { logged: false as const, status: r.status, error: (await r.json().catch(() => ({}))) as { error?: string } };
       await waitCosigned(env, ((await r.json()) as { sth: { treeSize: number } }).sth.treeSize);
+      return { logged: true as const, status: r.status };
     },
 
     /** Attack 9: someone with database access rewrites a stored leaf AND fixes its hash, so the log's own per-read check passes. */

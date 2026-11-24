@@ -4,6 +4,7 @@
   "threshold": 2,
   "maxAgeMs": 86400000,
   "vendorPublicKeys": { "release-2026": "<base64 public key>" },
+  "approverPublicKey": "<base64 public key of the SEPARATE approver key>",
   "witnesses": [
     { "id": "w1", "url": "https://w1.example.org", "publicKey": "<base64>" },
     { "id": "w2", "url": "https://w2.example.net", "publicKey": "<base64>" },

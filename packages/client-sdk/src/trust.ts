@@ -8,6 +8,7 @@ const Trust = z.object({
   witnesses: z.array(z.object({ id: z.string().min(1), url: z.string().url(), publicKey: b64 }).strict()).min(1),
   threshold: z.number().int().min(1),
   vendorPublicKeys: z.record(b64).refine((o) => Object.keys(o).length > 0, "at least one vendor key"),
+  approverPublicKey: b64,
   maxAgeMs: z.number().positive().finite().optional(),
   expected: z.object({ app: z.string().min(1), platform: z.string().min(1), installedVersion: z.string().optional() }).strict().optional(),
 }).strict();
@@ -17,6 +18,7 @@ const Trust = z.object({
  *  Pass `expected` (this install's app/platform/current version) at run time to get downgrade protection. */
 export function parseTrust(json: unknown, runtime: Pick<VerifyConfig, "expected"> = {}): VerifyConfig {
   const t = Trust.parse(json);
+  if (Object.values(t.vendorPublicKeys).includes(t.approverPublicKey)) throw new Error("approverPublicKey must differ from every vendor key: one key must not be able to do both jobs");
   if (t.threshold > t.witnesses.length) throw new Error(`threshold ${t.threshold} exceeds the ${t.witnesses.length} configured witnesses`);
   if (new Set(t.witnesses.map((w) => w.id)).size !== t.witnesses.length || new Set(t.witnesses.map((w) => w.publicKey)).size !== t.witnesses.length) throw new Error("duplicate witness id or key");
   return { ...t, expected: runtime.expected ?? t.expected };

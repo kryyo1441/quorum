@@ -1,6 +1,6 @@
 // End-to-end check against a RUNNING stack (docker compose up, or the dev stack), through the demo server: pnpm --filter @uw/demo smoke
-// Asserts what the dashboard shows for attacks 1, 5, 4 and 9, then that Reset restores a clean system. Exits non-zero on the first surprise.
-const DEMO = process.env.DEMO_URL ?? "http://localhost:4200", MONITOR = process.env.MONITOR_URL ?? "http://localhost:4300";
+// Asserts what the dashboard shows for attacks 1, 5, 4, 4b and 9, then that Reset restores a clean system. Exits non-zero on the first surprise.
+const DEMO = process.env.DEMO_URL ?? "http://localhost:4200", MONITOR = process.env.MONITOR_URL ?? "http://localhost:4300", LOG = process.env.LOG_URL ?? "http://localhost:4000";
 const WITNESSES = (process.env.WITNESS_URLS ?? "http://localhost:4101,http://localhost:4102,http://localhost:4103").split(",");
 type R = { id: string; state: "verified" | "blocked"; reason?: string; version: string };
 let failed = 0;
@@ -36,13 +36,22 @@ check(r.filter((x) => x.reason === "SPLIT_VIEW" || x.reason === "INSUFFICIENT_CO
 await post("/reset"); r = await fleet();
 check(r.every((x) => x.state === "verified"), "reset after attack 5: fleet clean");
 
-await post("/attacks/stolen-key");
-check(await until(async () => (await j<{ kind: string; version: string }[]>(`${MONITOR}/alerts`)).some((a) => a.kind === "UNAPPROVED_RELEASE" && a.version === "2.2.0"), 10000), "attack 4: monitor raised UNAPPROVED_RELEASE for 2.2.0");
+const size = async () => (await j<{ treeSize: number }>(`${LOG}/sth`)).treeSize;
+const before = await size(), a4 = await (await fetch(`${DEMO}/attacks/stolen-key`, { method: "POST", body: "{}" })).json() as { logged: boolean; status: number };
+check(a4.logged === false && a4.status === 403 && (await size()) === before, `attack 4: the log refused the release-key-only entry (HTTP ${a4.status}), tree size still ${before}`);
 r = await fleet();
-check(r.every((x) => x.state === "verified" && x.version === "2.2.0"), "attack 4: clients accept it (detected, not prevented)");
+check(r.every((x) => x.state === "blocked" && x.reason === "BAD_VENDOR_SIG" && x.version === "2.2.0"), `attack 4: every client rejects the single-signed release (${[...new Set(r.map((x) => x.reason))].join(",")})`);
 
 await post("/reset"); r = await fleet();
 check(r.every((x) => x.state === "verified" && x.version === "2.1.0"), "reset after attack 4: the malicious release is taken down");
+
+await post("/attacks/stolen-key?both=1");
+check(await until(async () => (await j<{ kind: string; version: string }[]>(`${MONITOR}/alerts`)).some((a) => a.kind === "UNAPPROVED_RELEASE" && a.version === "2.2.0"), 10000), "attack 4b: monitor raised UNAPPROVED_RELEASE for 2.2.0");
+r = await fleet();
+check(r.every((x) => x.state === "verified" && x.version === "2.2.0"), "attack 4b: with BOTH keys stolen clients accept it (detected, not prevented)");
+
+await post("/reset"); r = await fleet();
+check(r.every((x) => x.state === "verified" && x.version === "2.1.0"), "reset after attack 4b: the malicious release is taken down");
 
 const tamper = await fetch(`${DEMO}/attacks/tamper`, { method: "POST", body: "{}" });
 if (!tamper.ok) console.log(`skip attack 9: ${(await tamper.json() as { error: string }).error}`);

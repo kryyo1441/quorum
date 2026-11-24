@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { CompactTree, consistencyPath, inclusionPath, leafHashOfEntry, verifyCosig, verifyEntry } from "@uw/log-core";
+import { CompactTree, consistencyPath, inclusionPath, leafHashOfEntry, verifyApproval, verifyCosig, verifyEntry } from "@uw/log-core";
 import { Cosig, ReleaseEntry } from "@uw/shared";
 import { signHead, type LogIdentity } from "./log.js";
 import type { Leaf, LogStore } from "./store.js";
@@ -9,7 +9,7 @@ class Tampered extends Error {}
 
 /** vendorKeys: keyId -> base64 public key. Only entries validly signed by a registered vendor key are appended.
  *  Single-writer: this process owns the tree (appends are serialised here and the in-memory tree must match the store). */
-export function createApp(store: LogStore, id: LogIdentity, vendorKeys: Record<string, string>, witnessKeys: Record<string, string> = {}, now: () => number = Date.now) {
+export function createApp(store: LogStore, id: LogIdentity, vendorKeys: Record<string, string>, witnessKeys: Record<string, string> = {}, now: () => number = Date.now, approverKey?: string) {
   const app = new Hono();
   app.use(cors()); // the dashboard's /verify runs the client checks in the browser; every route here is public, read-only data except the signed POSTs
   app.onError((e, c) => e instanceof Tampered ? c.json({ error: e.message }, 500) : c.json({ error: "internal" }, 500));
@@ -36,6 +36,8 @@ export function createApp(store: LogStore, id: LogIdentity, vendorKeys: Record<s
     const e = p.data, pub = Object.hasOwn(vendorKeys, e.vendorKeyId) ? vendorKeys[e.vendorKeyId] : undefined;
     // An unsigned or foreign entry must not be loggable: otherwise anyone could put an attacker's hash "in the log".
     if (!pub || !verifyEntry(e, pub)) return c.json({ error: "vendorSig does not verify under a registered vendor key" }, 403);
+    // Two keys (amendment 13): a stolen release key alone cannot log anything. The client re-checks this, so a log that skips it still cannot get an entry accepted.
+    if (approverKey !== undefined && !verifyApproval(e, approverKey)) return c.json({ error: "approverSig is missing or does not verify under the approver key: a release needs both keys" }, 403);
     return serial(async () => {
       tree ??= leaves().then((ls) => new CompactTree(ls.map((l) => l.leafHash)));
       const t = await tree, leafHash = leafHashOfEntry(e);

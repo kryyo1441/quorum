@@ -15,7 +15,7 @@ import type { Env } from "./fleet.js";
 
 export function createWorld(o: { witnesses?: number; threshold?: number } = {}) {
   const clock = { t: Date.parse("2026-06-01T12:00:00.000Z") }, nW = o.witnesses ?? 3, TOKEN = "monitor-token";
-  const logId = newIdentity("uw-test-log"), vendor = generateKeypair(), wkeys = Array.from({ length: nW }, () => generateKeypair());
+  const logId = newIdentity("uw-test-log"), vendor = generateKeypair(), approver = generateKeypair(), wkeys = Array.from({ length: nW }, () => generateKeypair());
   const witnessKeys = Object.fromEntries(wkeys.map((k, i) => [`w${i + 1}`, k.publicKey]));
   const hosts = new Map<string, Hono>(), down = new Set<string>();
   const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
@@ -28,7 +28,7 @@ export function createWorld(o: { witnesses?: number; threshold?: number } = {}) 
   const now = () => clock.t;
 
   const store = memoryStore();
-  hosts.set("log", logApp(store, logId, { demo: vendor.publicKey }, witnessKeys, now));
+  hosts.set("log", logApp(store, logId, { demo: vendor.publicKey }, witnessKeys, now, approver.publicKey));
   hosts.set("update", updateApp());
   const urls = wkeys.map((_, i) => `http://w${i + 1}`);
   const witnesses = wkeys.map((k, i) => {
@@ -50,13 +50,13 @@ export function createWorld(o: { witnesses?: number; threshold?: number } = {}) 
   const settle = async (rounds = 2) => { for (let i = 0; i < rounds; i++) { for (const w of witnesses) await w.run.tick(true); await monitor.poll().catch(() => {}); } };
   const env: Env = {
     updateUrl: "http://update", logUrl: "http://log", monitor: { url: "http://monitor", token: TOKEN },
-    vendor: { keyId: "demo", secretKey: vendor.secretKey },
-    verify: { logUrl: "http://log", threshold: o.threshold ?? 2, maxAgeMs: 5 * 60_000, logPublicKey: logId.publicKey, vendorPublicKeys: { demo: vendor.publicKey },
+    vendor: { keyId: "demo", secretKey: vendor.secretKey }, approver: { secretKey: approver.secretKey },
+    verify: { logUrl: "http://log", threshold: o.threshold ?? 2, maxAgeMs: 5 * 60_000, logPublicKey: logId.publicKey, vendorPublicKeys: { demo: vendor.publicKey }, approverPublicKey: approver.publicKey,
       witnesses: witnesses.map((w) => ({ id: w.id, url: w.url, publicKey: w.publicKey })) },
     fetch, now, settle,
   };
   /** A second log that holds the SAME log key: the attacker is the log operator. Not a route of the real log-server. */
   const forkLog = (host = "evil") => { const s = memoryStore(); hosts.set(host, logApp(s, logId, { demo: vendor.publicKey }, witnessKeys, now)); return { host, url: `http://${host}`, store: s }; };
-  return { clock, env, fetch, store, logId, vendor, witnesses, monitor, settle, down, forkLog, hosts };
+  return { clock, env, fetch, store, logId, vendor, approver, witnesses, monitor, settle, down, forkLog, hosts };
 }
 export type World = ReturnType<typeof createWorld>;

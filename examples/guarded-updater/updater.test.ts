@@ -5,7 +5,7 @@ import { guardedUpdate } from "./updater.js";
 
 async function setup() {
   const w = createWorld(); await publish(w.env);
-  const trust = { logUrl: w.env.logUrl, logPublicKey: w.env.verify.logPublicKey, threshold: 2, maxAgeMs: 300000, vendorPublicKeys: w.env.verify.vendorPublicKeys, witnesses: w.env.verify.witnesses };
+  const trust = { logUrl: w.env.logUrl, logPublicKey: w.env.verify.logPublicKey, threshold: 2, maxAgeMs: 300000, vendorPublicKeys: w.env.verify.vendorPublicKeys, approverPublicKey: w.env.verify.approverPublicKey, witnesses: w.env.verify.witnesses };
   const installed: string[] = [];
   const go = (version = "2.0.0", client = "c1") => guardedUpdate({ updateUrl: w.env.updateUrl, trust, current: { app: "notepad-minus", platform: "win-x64", version }, install: (f) => installed.push(f), now: w.env.now, fetch: ((u: string, i?: RequestInit) => w.fetch(String(u).includes("/download/") ? `${u}?client=${client}` : String(u), i) /* the demo update server tells clients apart by this query */
     ) as typeof fetch });

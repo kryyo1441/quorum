@@ -32,7 +32,11 @@ app.post("/reset", async (c) => { await live.reset(); bus.reset(); return c.json
 app.get("/attacks/state", (c) => c.json(live.state()));
 // attacks on the live stack (SPEC §10 #4, #5, #9); #1 is /attack1
 app.post("/attacks/fork", async (c) => { const { clientId } = await c.req.json<{ clientId: string }>(); await live.fork(clientId); bus.attack(`attack 5 armed: the log operator will show ${clientId} a forked tree`); return c.json({ ok: true }); });
-app.post("/attacks/stolen-key", async (c) => { await live.stolenKey(); bus.attack("attack 4: a release signed with the stolen vendor key was appended to the log"); return c.json({ ok: true }); });
+app.post("/attacks/stolen-key", async (c) => {
+  const both = c.req.query("both") === "1", r = await live.stolenKey(both);
+  bus.attack(r.logged ? "attack 4b: BOTH keys were stolen, so the release was appended to the log (detected, not prevented)" : `attack 4: a release signed with the stolen release key alone was REFUSED by the log (HTTP ${r.status}): no approver signature`);
+  return c.json({ ok: true, ...r });
+});
 app.post("/attacks/tamper", async (c) => { await live.tamper(); bus.attack("attack 9: a stored leaf was rewritten in Postgres"); return c.json({ ok: true }); });
 app.post("/attack1", async (c) => { const { clientId } = await c.req.json<{ clientId: string }>(); await attack1(env, clientId); bus.attack(`attack 1 armed: the update server will serve ${clientId} a different binary`); return c.json({ ok: true }); });
 

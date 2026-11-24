@@ -10,7 +10,7 @@ install(downloadedBytes);
 
 `updater.ts` is the whole pattern. Three things are yours to set up:
 
-1. **Trust bundle** (`trust.json`, baked into the app at build time). It carries the log's public key, the witnesses' keys and URLs, the vendor's public key(s) and `threshold` (k of n). **Never fetch these from the log or witnesses you are about to check**: that would let a compromised log vouch for itself. See `trust.example.json`.
+1. **Trust bundle** (`trust.json`, baked into the app at build time). It carries the log's public key, the witnesses' keys and URLs, the vendor's public key(s), the separate **approver** public key and `threshold` (k of n). **Never fetch these from the log or witnesses you are about to check**: that would let a compromised log vouch for itself. See `trust.example.json`.
 2. **`expected`**: this install's app, platform and current version. Without it the downgrade check is skipped (reported, not hidden).
 3. **Publishing**: `uw publish ./app.exe --app notepad-minus --version 2.1.0 --platform win-x64 --url https://cdn.example/app.exe --key-id release-2026 --log https://log.example` (secret from `VENDOR_SECRET_KEY`).
 

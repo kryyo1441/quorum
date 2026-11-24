@@ -6,6 +6,7 @@ export const ReleaseEntry = z.object({
   sha256: z.string().regex(/^[0-9a-f]{64}$/), size: z.number().int().nonnegative(),
   url: z.string(), publishedAt: z.string().datetime(),
   vendorKeyId: z.string(), vendorSig: z.string(),
+  approverSig: z.string().optional(), // second key (amendment 13): signs the whole entry incl. vendorSig. Optional on the wire; REQUIRED by every log and client that is configured with an approver key.
 }).strict(); // strict: unknown fields are rejected, never silently stripped (a stripped entry would no longer match its vendorSig)
 export const Cosig = z.object({ witnessId: z.string(), sig: z.string(), timestamp: z.string() });
 export const STH = z.object({

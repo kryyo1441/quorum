@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { signEntry } from "@uw/log-core";
+import { approveEntry, signEntry } from "@uw/log-core";
 import { checkUpdate, reportObservation, verdictOf, type Check, type VerifyConfig } from "@uw/client-sdk";
 import type { FailReason, Observation, ReleaseEntry } from "@uw/shared";
 
@@ -8,6 +8,7 @@ export type Env = {
   updateUrl: string; logUrl: string;
   monitor?: { url: string; token: string };           // where the approved-release list lives (§9)
   vendor: { keyId: string; secretKey: string };
+  approver?: { secretKey: string };                   // the SECOND key (amendment 13). Whoever publishes honestly holds it; the stolen-key attack deliberately signs without it
   verify: Omit<VerifyConfig, "expected">;             // what every client trusts: log key, witness keys, vendor keys, k
   fetch: Fetch; now?: () => number;
   logFor?: (clientId: string) => string | undefined;   // attack 5: the log THIS client is shown (a malicious operator's fork)
@@ -31,10 +32,13 @@ export function meter(f: Fetch) {
   return { fetch: (async (u, i) => { const r = await f(u, i); bytes += new TextEncoder().encode(await r.clone().text()).length; return r; }) as Fetch, bytes: () => bytes };
 }
 
-/** Builds and vendor-signs the release entry for `binary` (the vendor CLI step). */
-export const makeEntry = (e: Env, binary: Uint8Array, version = VERSION): ReleaseEntry => signEntry({
-  app: APP, version, platform: PLATFORM, sha256: sha256(binary), size: binary.length,
-  url: `${e.updateUrl}/download/${APP}/${version}/${PLATFORM}`, publishedAt: new Date((e.now ?? Date.now)()).toISOString(), vendorKeyId: e.vendor.keyId }, e.vendor.secretKey);
+/** Builds the release entry for `binary`: vendor-signed (the release key), then approved by the second key unless `approve: false` (an attacker who stole only the release key). */
+export const makeEntry = (e: Env, binary: Uint8Array, version = VERSION, o: { approve?: boolean } = {}): ReleaseEntry => {
+  const signed = signEntry({
+    app: APP, version, platform: PLATFORM, sha256: sha256(binary), size: binary.length,
+    url: `${e.updateUrl}/download/${APP}/${version}/${PLATFORM}`, publishedAt: new Date((e.now ?? Date.now)()).toISOString(), vendorKeyId: e.vendor.keyId }, e.vendor.secretKey);
+  return e.approver && o.approve !== false ? approveEntry(signed, e.approver.secretKey) : signed;
+};
 
 const ok = async (what: string, r: Response) => { if (!r.ok) throw new Error(`${what}: ${r.status} ${await r.text()}`); return r; };
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));

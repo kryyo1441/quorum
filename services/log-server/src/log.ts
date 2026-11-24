@@ -16,6 +16,13 @@ export function logIdentity(env: Record<string, string | undefined> = process.en
   return { logId, secretKey, publicKey: publicKeyOf(secretKey) };
 }
 
+/** The approver public key (APPROVER_PUBLIC_KEY, base64): the SECOND key every release needs. Required unless DEV=1 (then the public dev approver key). */
+export function approverKey(env: Record<string, string | undefined> = process.env): string {
+  if (env.APPROVER_PUBLIC_KEY) return env.APPROVER_PUBLIC_KEY;
+  if (!isDev(env)) throw new Error("APPROVER_PUBLIC_KEY is required (set DEV=1 only for demos)");
+  return publicKeyOf(devSecret("approver"));
+}
+
 /** Registered vendor keys the log accepts entries from: VENDOR_PUBLIC_KEYS='{"keyId":"<base64 pub>"}'. Required unless DEV=1 (then the public dev vendor key "demo"). */
 export function vendorKeys(env: Record<string, string | undefined> = process.env): Record<string, string> {
   if (env.VENDOR_PUBLIC_KEYS) {

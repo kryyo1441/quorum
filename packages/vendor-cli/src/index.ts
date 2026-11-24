@@ -1,15 +1,15 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { generateKeypair, publicKeyOf, signEntry } from "@uw/log-core";
+import { approveEntry, generateKeypair, publicKeyOf, signEntry } from "@uw/log-core";
 import { ReleaseEntry, type ReleaseEntry as Entry } from "@uw/shared";
 
-export type PublishOpts = { file: string; app: string; version: string; platform: Entry["platform"]; url: string; keyId: string; secretKey: string; logUrl: string };
+export type PublishOpts = { file: string; app: string; version: string; platform: Entry["platform"]; url: string; keyId: string; secretKey: string; approverSecretKey: string; logUrl: string };
 export type Published = { entry: Entry; leafIndex: number; treeSize: number };
 
-/** Hash the release file, sign the entry with the vendor key, append it to the log. Throws if the log refuses (a log only takes entries signed by a registered vendor key). */
+/** Hash the release file, sign the entry with the release key, approve it with the SEPARATE approver key, append it to the log. Throws if the log refuses (it needs both signatures). */
 export async function publish(o: PublishOpts, f: typeof fetch = fetch): Promise<Published> {
   const bytes = readFileSync(o.file);
-  const entry = signEntry({ app: o.app, version: o.version, platform: o.platform, sha256: createHash("sha256").update(bytes).digest("hex"), size: bytes.length, url: o.url, publishedAt: new Date().toISOString(), vendorKeyId: o.keyId }, o.secretKey);
+  const entry = approveEntry(signEntry({ app: o.app, version: o.version, platform: o.platform, sha256: createHash("sha256").update(bytes).digest("hex"), size: bytes.length, url: o.url, publishedAt: new Date().toISOString(), vendorKeyId: o.keyId }, o.secretKey), o.approverSecretKey);
   ReleaseEntry.parse(entry); // refuse to send something the log would reject as malformed
   const r = await f(`${o.logUrl}/entries`, { method: "POST", body: JSON.stringify(entry) });
   if (!r.ok) throw new Error(`log refused the release: ${r.status} ${await r.text()}`);

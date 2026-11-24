@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
-import { devSecret, generateKeypair, leafHashOfEntry, publicKeyOf, rootHash, signEntry, verifyConsistency, verifyEntry, verifyInclusion, verifyLogSig } from "@uw/log-core";
+import { approveEntry, devSecret, generateKeypair, leafHashOfEntry, publicKeyOf, rootHash, signEntry, verifyConsistency, verifyEntry, verifyInclusion, verifyLogSig } from "@uw/log-core";
 import { createApp } from "./app.js";
-import { logIdentity, newIdentity, vendorKeys } from "./log.js";
+import { approverKey, logIdentity, newIdentity, vendorKeys } from "./log.js";
 import { memoryStore, type LogStore } from "./store.js";
 
 const vendor = generateKeypair();
@@ -156,4 +156,29 @@ test("cosigs are rejected: unknown witness, wrong key, wrong head, far-future ti
   expect((await cosigPost(app, 7, cosign(h1, "w1", wit[0].secretKey, ts))).status).toBe(404);
   expect((await cosigPost(app, 1, { nope: 1 })).status).toBe(400);
   expect((await json(app.request("/sth/1"))).cosigs).toEqual([]);
+});
+
+// ---- amendment 13: two keys ----
+test("with an approver key configured the log refuses an entry the release key signed alone, and logs nothing", async () => {
+  const approver = generateKeypair(), store = memoryStore(), app = createApp(store, newIdentity(), { k: vendor.publicKey }, {}, Date.now, approver.publicKey);
+  const alone = entry(0), r = await post(app, alone);
+  expect(r.status).toBe(403);
+  expect((await json(r)).error).toMatch(/approverSig/);
+  expect((await json(app.request("/sth"))).treeSize ?? 0).toBe(0);
+  expect((await post(app, approveEntry(alone, approver.secretKey))).status).toBe(201);
+});
+test("an approval by the wrong key, by the release key itself, or lifted from another entry is refused", async () => {
+  const approver = generateKeypair(), app = createApp(memoryStore(), newIdentity(), { k: vendor.publicKey }, {}, Date.now, approver.publicKey);
+  const a = approveEntry(entry(1), approver.secretKey);
+  for (const bad of [approveEntry(entry(2), generateKeypair().secretKey), approveEntry(entry(3), vendor.secretKey), { ...entry(4), approverSig: a.approverSig }, { ...entry(5), approverSig: "x" }])
+    expect((await post(app, bad)).status, JSON.stringify(bad.approverSig)).toBe(403);
+});
+test("without an approver key (older deployments) the log keeps its single-key behaviour", async () => {
+  expect((await post(setup().app, entry(0))).status).toBe(201);
+});
+test("the approver key is required unless DEV=1", () => {
+  expect(() => approverKey({})).toThrow(/APPROVER_PUBLIC_KEY is required/);
+  expect(approverKey({ DEV: "1" })).toBe(publicKeyOf(devSecret("approver")));
+  const k = generateKeypair();
+  expect(approverKey({ APPROVER_PUBLIC_KEY: k.publicKey })).toBe(k.publicKey);
 });

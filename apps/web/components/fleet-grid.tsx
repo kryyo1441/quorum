@@ -67,7 +67,8 @@ export function FleetGrid() {
         {([
           ["1", "1 · swap one client's binary", "attack1", { clientId: target }],
           ["5", "5 · fork the log for the target", "attacks/fork", { clientId: target }],
-          ["4", "4 · stolen-key release", "attacks/stolen-key", {}],
+          ["4", "4 · stolen release key", "attacks/stolen-key", {}],
+          ["4b", "4b · both keys stolen", "attacks/stolen-key?both=1", {}],
           ["9", "9 · tamper a leaf in Postgres", "attacks/tamper", {}],
         ] as const).map(([k, label, path, body]) => (
           <button key={k} onClick={() => arm(k, path, body)} className={`rounded-full border px-4 py-2 transition ${armed.includes(k) ? "border-bad bg-bad/15 text-bad" : "border-line text-ink hover:border-bad hover:text-bad"}`}>{label}{armed.includes(k) ? " · armed" : ""}</button>

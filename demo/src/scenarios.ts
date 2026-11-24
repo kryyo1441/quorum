@@ -64,19 +64,34 @@ export const SCENARIOS: { n: number; name: string; attack: string; expected: str
       const { checks, verdict } = await verdictFor(w, EVIL, evilEntry);
       return { naive: naive(w, EVIL, evilEntry), actual: reasonOf(verdict), pass: !verdict.ok && verdict.reason === "NOT_IN_LOG", evidence: [`vendorSig check: ${checks.find((c) => c.id === "vendorSig")!.status} (the key IS valid)`, `verdict: ${why(verdict)}`] };
     } },
-  { n: 4, name: "Stolen key, release logged", attack: "Attacker holds the vendor key and logs a malicious release", expected: "Clients accept; monitor raises UNAPPROVED_RELEASE within one poll",
+  { n: 4, name: "Stolen release key", attack: "Attacker holds the vendor's release key and tries to log a malicious release. Then the worse case: the approver key too",
+    expected: "Release key alone: refused by the log (403), clients reject it. Both keys: accepted, monitor raises UNAPPROVED_RELEASE",
     run: async (w) => {
       await publish(w.env);
-      const evilEntry = makeEntry(w.env, EVIL, "2.2.0"), t0 = performance.now();
-      await w.fetch(`${w.env.updateUrl}/admin/release`, { method: "POST", body: JSON.stringify({ entry: evilEntry, binary: Buffer.from(EVIL).toString("base64") }) });
-      const r = await post(w, `${w.env.logUrl}/entries`, evilEntry); // the log accepts it: the signature is valid
-      await w.settle(1);                                              // exactly ONE cycle: each witness polls and cosigns, the monitor polls once
-      const alertMs = performance.now() - t0, alerts = w.monitor.alerts.filter((a) => a.kind === "UNAPPROVED_RELEASE" && a.version === "2.2.0");
-      const client = await runClient(w.env, "c1");
-      const tryApprove = await w.fetch(`${w.env.monitor!.url}/approved`, { method: "POST", body: JSON.stringify({ app: APP, version: "2.2.0", platform: PLATFORM, sha256: sha256(EVIL) }) }); // the release key is not the approval token
-      const pass = r.status === 201 && client.state === "verified" && alerts.length === 1 && tryApprove.status === 401;
-      return { naive: naive(w, EVIL, evilEntry) + " and nothing ever alerts the vendor", actual: `${client.state === "verified" ? "ACCEPTED" : client.reason}; monitor: ${alerts.length ? "UNAPPROVED_RELEASE" : "no alert"}`, pass, alertMs,
-        evidence: ["detected, NOT prevented: a client that installs before the monitor polls is exposed for one poll window", `client verdict: ${client.state}`, `monitor alerts: ${alerts.map((a) => `${a.kind} ${a.version}`).join(", ") || "none"}`, `attacker approving its own release without the monitor token: HTTP ${tryApprove.status}`] };
+      const size0 = ((await (await w.fetch(`${w.env.logUrl}/sth`)).json()) as STH).treeSize;
+      const upload = (e: ReleaseEntry) => w.fetch(`${w.env.updateUrl}/admin/release`, { method: "POST", body: JSON.stringify({ entry: e, binary: Buffer.from(EVIL).toString("base64") }) });
+      // (a) the release key alone: no second signature
+      const alone = makeEntry(w.env, EVIL, "2.2.0", { approve: false }), t0 = performance.now();
+      await upload(alone);
+      const refused = await post(w, `${w.env.logUrl}/entries`, alone);
+      const sizeAfter = ((await (await w.fetch(`${w.env.logUrl}/sth`)).json()) as STH).treeSize;
+      const blocked = await runClient(w.env, "c1");                      // the update server hands c1 the unlogged, single-signed release
+      const alertMs = performance.now() - t0;
+      await w.fetch(`${w.env.updateUrl}/admin/release/${APP}/2.2.0/${PLATFORM}`, { method: "DELETE" });
+      // (b) both keys stolen: the log cannot tell it from the vendor, so it is accepted and only the monitor can object
+      const both = makeEntry(w.env, EVIL, "2.2.0");
+      await upload(both);
+      const r = await post(w, `${w.env.logUrl}/entries`, both);
+      await w.settle(1);                                                  // exactly ONE cycle: each witness polls and cosigns, the monitor polls once
+      const alerts = w.monitor.alerts.filter((a) => a.kind === "UNAPPROVED_RELEASE" && a.version === "2.2.0");
+      const accepted = await runClient(w.env, "c2");
+      const tryApprove = await w.fetch(`${w.env.monitor!.url}/approved`, { method: "POST", body: JSON.stringify({ app: APP, version: "2.2.0", platform: PLATFORM, sha256: sha256(EVIL) }) }); // neither stolen key is the approval token
+      const pass = refused.status === 403 && sizeAfter === size0 && blocked.state === "blocked" && blocked.reason === "BAD_VENDOR_SIG"
+        && r.status === 201 && accepted.state === "verified" && alerts.length === 1 && tryApprove.status === 401;
+      return { naive: naive(w, EVIL, alone) + " and nothing ever alerts the vendor", alertMs, pass,
+        actual: `release key alone: log HTTP ${refused.status}, client ${blocked.reason ?? "ACCEPTED"}; both keys: ${accepted.state === "verified" ? "ACCEPTED" : accepted.reason}, monitor: ${alerts.length ? "UNAPPROVED_RELEASE" : "no alert"}`,
+        evidence: [`(a) log answered HTTP ${refused.status} to the release-key-only entry; tree size stayed ${size0} -> ${sizeAfter}`, `(a) client c1 was handed it anyway: ${blocked.state} ${blocked.reason ?? ""} ${blocked.detail ?? ""}`,
+          "(b) limit: with BOTH keys stolen the release is detected, NOT prevented: a client that installs before the monitor polls is exposed for one poll window", `(b) client c2: ${accepted.state}; monitor alerts: ${alerts.map((a) => `${a.kind} ${a.version}`).join(", ") || "none"}`, `(b) attacker approving its own release without the monitor token: HTTP ${tryApprove.status}`] };
     } },
   { n: 5, name: "Split view (forked log)", attack: "Log operator shows client c3 a forked tree containing a release the public log never has", expected: "Victim blocked INSUFFICIENT_COSIGS; witnesses raise INCONSISTENT_STH",
     run: async (w) => {
