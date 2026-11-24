@@ -6,6 +6,8 @@ const [cmd, arg] = process.argv.slice(2);
 
 if (cmd === "seed") {
   // idempotent: `docker compose up` runs this every time
+  // compose only orders startup: wait until the log and update server answer, or a cold start publishes to the update server but not the log
+  for (let i = 0; i < 60 && !(await Promise.all([`${env.logUrl}/entries`, `${env.updateUrl}/`].map((u) => fetch(u).then(() => true, () => false)))).every(Boolean); i++) await new Promise((r) => setTimeout(r, 1000));
   if ((await fetch(`${env.updateUrl}/latest/${APP}/${PLATFORM}`).catch(() => undefined))?.ok) console.log("already published");
   else console.log("published and cosigned", (await seed(env)).sha256);
 }
