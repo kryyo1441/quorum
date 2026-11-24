@@ -44,7 +44,7 @@ Timing: about 4 minutes spoken, plus the demo. Cut guide at the bottom.
 >
 > That's **Quorum.**
 >
-> The vendor publishes every release into a **public log**, a Merkle tree that can only grow, the same idea that already protects TLS certificates.
+> The vendor signs every release with **two separate keys**, held by different people, and publishes it into a **public log**: a Merkle tree that can only grow, the same idea that already protects TLS certificates. The log won't take a release without both signatures.
 >
 > Then **three independent witnesses** check that the log only ever grows, and cosign what they saw. They gossip to each other, so a log can't show different people different things.
 >
@@ -122,17 +122,18 @@ Timing: about 4 minutes spoken, plus the demo. Cut guide at the bottom.
 
 | If you have | Do this |
 |---|---|
-| **90 seconds** | Question (0:00), one incident (cPGuard) plus the "selective" point, one sentence of idea, **Attack 1 only**, last line. |
-| **2 minutes** | The above plus Attack 5 and the scoreboard sentence. |
-| **3 minutes** | Question, one incident, idea, Attacks 1 and 5, scoreboard, **one sentence of money** ("vendors pay per app to run the log and witnesses; regulation is arriving; we have no customers yet"), last line. |
+| **90 seconds** | Question (0:00), one incident (cPGuard) plus the "selective" point, one sentence of idea, **Attack 1 only**, then one line: "and a stolen key alone ships nothing: every release needs two", last line. |
+| **2 minutes** | The above plus Attack 4 (live: every tile red), Attack 5 and the scoreboard sentence. |
+| **3 minutes** | Question, one incident, idea, Attacks 1, 5 and 4 (skip 4b), scoreboard, **one sentence of money** ("vendors pay per app to run the log and witnesses; regulation is arriving; we have no customers yet"), last line. |
 | **4 minutes** | The full script, skipping the AOMEI and eScan details if you run long. |
 | **5+ minutes** | Add: slide 7 (the eight checks), `/verify` in the browser, and the Log page's in-browser proof. |
 
 ## Likely questions, and honest answers
 
-- **"Why not just use code signing?"** Signing proves who signed, not who else got the file. If the attacker has the server or the key, the signature is exactly what they have too.
+- **"Why not just use code signing?"** Signing proves who signed, not who else got the file. If the attacker has the server or the key, the signature is exactly what they have too. We keep signing, but require two keys and a public, witnessed log on top.
 - **"Who runs the witnesses?"** Today, us (it's a demo). The design needs independent operators: universities, CERTs, other vendors. That's the next milestone, and the moat.
 - **"What if the vendor's key is stolen?"** One key is not enough: every release needs the release key and a separate approver key, and both the log and every client check both. With only one, nothing ships. If both are stolen we can't prevent it, but it is public and flagged within one poll. Key rotation and revocation are not built yet.
+- **"Isn't a second key just more ceremony for the vendor?"** One extra signature per release, from someone other than the person who builds it: the same two-person rule banks use for payments. `uw publish` takes both keys; in a real setup the approver signs on a separate machine.
 - **"What does this cost the user?"** About a hundred milliseconds and about a kilobyte per update, measured in-process; a real network adds round trips.
 - **"Can you really make money? The log is open."** The idea is open on purpose, because a closed transparency log is not trusted. The money is in operating it (hosted log, a managed witness quorum, SLAs, alerting, audit evidence) the way Let's Encrypt is free while certificate vendors still sell. We have no customers yet; the next step is design partners. Chainguard's reported revenue shows the budget line exists, not that our product sells.
 - **"Is this new?"** No: Certificate Transparency, Go's checksum database, Sigstore and TUF came first. Our angle is a drop-in SDK and witness network for desktop apps and agent runtimes, plus detecting selective targeting across clients.
