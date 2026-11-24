@@ -4,9 +4,9 @@
 <p align="center"><b>A software update installs only if a quorum of independent witnesses has seen the exact same file.</b><br>
 The update server stops being a party you have to trust.</p>
 
-<p align="center"><img src="assets/demo.gif" alt="Quorum demo: roll out to 12 clients, swap one client's binary, fork the log, steal the vendor key, run all ten attack scenarios (recorded before two-key approval)" width="900"></p>
+<p align="center"><img src="assets/fleet-attack4.jpg" alt="Fleet: all twelve clients blocked with BAD_VENDOR_SIG after a release signed with a stolen release key only" width="900"></p>
 
-<p align="center"><sub>The whole demo, recorded from the running stack: a clean rollout, attack 1 (one client gets a different binary), attack 5 (the log forks one client's view), attack 4 (a stolen-key release; recorded before two-key approval, so it shows the old detect-only behaviour: a stolen release key is now refused outright), then all ten scenarios.</sub></p>
+<p align="center"><sub><b>Attack 4, live.</b> An attacker steals the release key and signs a malicious 2.2.0. The log refuses it (HTTP 403: no approver signature), and every client that is handed it anyway blocks it with <code>BAD_VENDOR_SIG</code>. One stolen key ships nothing.</sub></p>
 
 ---
 
@@ -73,7 +73,7 @@ flowchart LR
 <img src="assets/overview.jpg" alt="Overview with live counters and event feed" width="700">
 <img src="assets/releases.jpg" alt="Vendor console listing releases" width="700">
 <img src="assets/log.jpg" alt="Log explorer with the Merkle tree" width="700">
-<img src="assets/attack-baseline.jpg" alt="Scenario cards showing the signature-only updater being fooled" width="700">
+<img src="assets/attack-baseline.jpg" alt="Scenario cards 4 to 6: the stolen release key refused, the forked log caught, the downgrade blocked, each beside the signature-only updater that installs the attacker's file" width="700">
 
 </details>
 
