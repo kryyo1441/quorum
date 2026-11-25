@@ -4,6 +4,8 @@
 <p align="center"><b>A software update installs only if a quorum of independent witnesses has seen the exact same file.</b><br>
 The update server stops being a party you have to trust.</p>
 
+<p align="center"><a href="https://codespaces.new/kryyo1441/quorum?quickstart=1"><img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces"></a><br><sub>Try the live demo in your browser: one click, nothing to install.</sub></p>
+
 <p align="center"><img src="assets/fleet-attack4.jpg" alt="Fleet: all twelve clients blocked with BAD_VENDOR_SIG after a release signed with a stolen release key only" width="900"></p>
 
 <p align="center"><sub><b>Attack 4, live.</b> An attacker steals the release key and signs a malicious 2.2.0. The log refuses it (HTTP 403: no approver signature), and every client that is handed it anyway blocks it with <code>BAD_VENDOR_SIG</code>. One stolen key ships nothing.</sub></p>
@@ -79,7 +81,14 @@ flowchart LR
 
 ## Run it
 
+**In your browser, nothing to install:** [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/kryyo1441/quorum?quickstart=1)
+
+It generates fresh keys and starts the whole stack; the first start takes a few minutes (it builds one image for every service). Then open port **3000** in the Ports tab. It runs on your own free Codespaces hours; stop the codespace when you're done.
+
+**Locally,** with Node 22 and Docker:
+
 ```bash
+npx -y pnpm@10 install           # dependencies (env:init needs them)
 npx -y pnpm@10 env:init          # fresh keys (log, release, approver, witnesses) into a gitignored .env (refuses to overwrite)
 docker compose up --build        # builds one image, starts Postgres, the log, 3 witnesses, the monitor, the update server, the demo server and the dashboard
 ```
