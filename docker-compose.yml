@@ -121,8 +121,8 @@ services:
       MONITOR_TOKEN: ${MONITOR_TOKEN:?run `pnpm env:init` first}
       DEMO_URL: http://demo:4200
       # what the BROWSER reaches (the /verify page runs the checks client-side) and the keys it pins
-      PUBLIC_LOG_URL: http://localhost:4000
-      PUBLIC_WITNESS_URLS: http://localhost:4101,http://localhost:4102,http://localhost:4103
+      PUBLIC_LOG_URL: ${PUBLIC_LOG_URL:-http://localhost:4000}
+      PUBLIC_WITNESS_URLS: ${PUBLIC_WITNESS_URLS:-http://localhost:4101,http://localhost:4102,http://localhost:4103}
       LOG_PUBLIC_KEY: ${LOG_PUBLIC_KEY:?run `pnpm env:init` first}
       WITNESS_PUBLIC_KEYS: ${WITNESS_PUBLIC_KEYS:?run `pnpm env:init` first}
       VENDOR_PUBLIC_KEYS: ${VENDOR_PUBLIC_KEYS:?run `pnpm env:init` first}

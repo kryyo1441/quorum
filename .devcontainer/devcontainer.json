@@ -1,0 +1,22 @@
+// One click from the README: GitHub Codespaces builds this, generates fresh keys and starts the whole stack.
+// The dashboard opens on port 3000 when it is ready (first start takes a few minutes: it builds one image for every service).
+{
+  "name": "Quorum",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "hostRequirements": { "cpus": 4, "memory": "8gb" },
+  "postCreateCommand": "npx -y pnpm@10 install --frozen-lockfile && (test -f .env || npx -y pnpm@10 env:init)",
+  "postStartCommand": "bash .devcontainer/start.sh",
+  "forwardPorts": [3000, 4000, 4101, 4102, 4103],
+  "portsAttributes": {
+    "3000": { "label": "Quorum dashboard", "onAutoForward": "openBrowser" },
+    "4000": { "label": "log", "onAutoForward": "silent" },
+    "4101": { "label": "witness 1", "onAutoForward": "silent" },
+    "4102": { "label": "witness 2", "onAutoForward": "silent" },
+    "4103": { "label": "witness 3", "onAutoForward": "silent" }
+  },
+  "otherPortsAttributes": { "onAutoForward": "silent" }
+}
