@@ -7,7 +7,7 @@
     "test": "turbo test",
     "dev": "turbo dev",
     "fixtures": "tsx fixtures/generate.ts",
-    "env:init": "tsx scripts/init-env.ts"
+    "env:init": "pnpm --filter @uw/shared build && tsx scripts/init-env.ts"
   },
   "devDependencies": {
     "turbo": "^2",
